@@ -139,6 +139,11 @@ async function handle(command) {
       requireModelConfig();
       const record = await loadApplication(command.id);
       if (record.model && record.model !== config.model) throw new Error(`This application used ${record.model}; select that model to resume it.`);
+      // An explicit Resume is a fresh planning turn. Replaying a stale pending
+      // model call is what caused old checkbox and scroll actions to loop.
+      record.responseId = null;
+      record.pendingCalls = [];
+      record.pendingOutputs = [];
       data = { id: record.id };
       run(record, String(command.message || 'Continue the application from its saved context.'));
     } else if (action === 'stop') {

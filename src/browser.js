@@ -187,8 +187,20 @@ export class BrowserController {
     });
   }
   async pageText(limit = 5000) { return this.current().evaluate(max => document.body?.innerText?.slice(0, max) || '', limit); }
-  async select(target, value) { await this.awaitPage(() => this.resolve(target).then(locator => locator.selectOption(String(value), { timeout: 60000 })), 'Dropdown'); return { selected: value }; }
-  async check(target, checked) { await this.awaitPage(() => this.resolve(target).then(locator => locator.setChecked(Boolean(checked), { timeout: 60000 })), 'Checkbox'); return { checked: Boolean(checked) }; }
+  async select(target, value) {
+    const locator = await this.resolve(target);
+    const current = await locator.inputValue().catch(() => '');
+    if (current === String(value)) return { selected: value, changed: false, alreadySelected: true };
+    await this.awaitPage(() => locator.selectOption(String(value), { timeout: 60000 }), 'Dropdown');
+    return { selected: value, changed: true };
+  }
+  async check(target, checked) {
+    const locator = await this.resolve(target);
+    const current = await locator.isChecked().catch(() => null);
+    if (current === Boolean(checked)) return { checked: Boolean(checked), changed: false, alreadySet: true };
+    await this.awaitPage(() => locator.setChecked(Boolean(checked), { timeout: 60000 }), 'Checkbox');
+    return { checked: Boolean(checked), changed: true };
+  }
   async upload(target, file) {
     const absolute = await fs.realpath(path.resolve(file));
     const allowed = await Promise.all((this.record.sourceFiles || []).map(item => fs.realpath(item).catch(() => null)));
