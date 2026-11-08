@@ -4,8 +4,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-edges-'));
-process.env.KITO_DATA_DIR = path.join(temporary, 'data');
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-edges-'));
+process.env.RAX_DATA_DIR = path.join(temporary, 'data');
 process.env.MODEL_API_KEY = 'local-edge-test-key';
 process.env.MUSE_MODEL = 'local-edge-test-model';
 const privateFile = path.join(temporary, 'private-financials.txt');

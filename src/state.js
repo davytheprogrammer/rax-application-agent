@@ -2,13 +2,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
+import { existsSync } from 'node:fs';
 import { config } from './config.js';
 
 const applicationsDir = path.join(config.dataDir, 'applications');
 const profilePath = path.join(config.dataDir, 'profile.md');
 const homeChatPath = path.join(config.dataDir, 'home-chat.json');
 const browserDir = path.join(config.dataDir, 'chrome-profile');
-const documentsDir = path.join(os.homedir(), 'Documents', 'Kito');
+const newDocumentsDir = path.join(os.homedir(), 'Documents', 'Rax');
+const oldDocumentsDir = path.join(os.homedir(), 'Documents', 'Kito');
+const documentsDir = existsSync(newDocumentsDir) ? newDocumentsDir : existsSync(oldDocumentsDir) ? oldDocumentsDir : newDocumentsDir;
 const writeQueues = new Map();
 
 export async function ensureState() {

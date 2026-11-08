@@ -1,5 +1,5 @@
 {
-  "name": "kito-application-agent",
+  "name": "rax-application-agent",
   "version": "0.1.0",
   "description": "An open-source desktop agent that researches, completes, and tracks job, grant, fellowship, scholarship, and other applications in visible Chrome.",
   "keywords": [
@@ -16,14 +16,14 @@
     "muse"
   ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/davytheprogrammer/kito-application-agent.git" },
-  "homepage": "https://github.com/davytheprogrammer/kito-application-agent#readme",
-  "bugs": "https://github.com/davytheprogrammer/kito-application-agent/issues",
+  "repository": { "type": "git", "url": "https://github.com/davytheprogrammer/rax-application-agent.git" },
+  "homepage": "https://github.com/davytheprogrammer/rax-application-agent#readme",
+  "bugs": "https://github.com/davytheprogrammer/rax-application-agent/issues",
   "private": true,
   "type": "module",
   "main": "desktop/electron/main.cjs",
   "bin": {
-    "kito": "./src/cli.js"
+    "rax": "./src/cli.js"
   },
   "scripts": {
     "start": "node src/cli.js",

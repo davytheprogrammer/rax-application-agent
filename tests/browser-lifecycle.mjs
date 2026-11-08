@@ -4,8 +4,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-browser-life-'));
-process.env.KITO_DATA_DIR = path.join(temporary, 'data');
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-browser-life-'));
+process.env.RAX_DATA_DIR = path.join(temporary, 'data');
 const server = http.createServer((request, response) => {
   response.setHeader('content-type', 'text/html');
   if (request.url === '/slow') {
@@ -28,12 +28,12 @@ try {
   const began = Date.now();
   const partial = await first.goto(`${url}slow`);
   assert.match(partial.text, /Partial page is visible/);
-  assert.ok(Date.now() - began < 11500, 'Kito inspects a partial page without waiting for the whole response');
+  assert.ok(Date.now() - began < 11500, 'Rax inspects a partial page without waiting for the whole response');
   assert.ok(waitEvents.some(value => /still rendering/.test(value)));
   await first.detach();
   const port = Number((await fs.readFile(path.join(temporary, 'data', 'chrome-profile', 'DevToolsActivePort'), 'utf8')).split('\n')[0]);
   const endpoint = await fetch(`http://127.0.0.1:${port}/json/version`);
-  assert.equal(endpoint.ok, true, 'Chrome remains running after Kito detaches');
+  assert.equal(endpoint.ok, true, 'Chrome remains running after Rax detaches');
   record.responseId = 'previous-run';
   second = new BrowserController(record);
   await second.open();
@@ -45,7 +45,7 @@ try {
     assert.equal(third.current().url(), url);
     assert.ok(third.context.pages().length >= 2, 'new applications use a new tab');
   } finally { await third.detach(); }
-  console.log('Browser lifecycle passed: Chrome stays open, Kito reconnects, and slow pages are inspected early.');
+  console.log('Browser lifecycle passed: Chrome stays open, Rax reconnects, and slow pages are inspected early.');
 } finally {
   await second?.close().catch(() => {});
   await first.detach().catch(() => {});

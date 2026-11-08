@@ -27,7 +27,7 @@ function summaries(records) {
 setAskHandler(question => new Promise((resolve, reject) => {
   if (pendingQuestion) return reject(new Error('Another user question is already open'));
   const id = nextQuestionId++;
-  const purpose = question.includes('Type yes to continue') ? 'approval' : question.startsWith('Chrome needs you:') ? 'handoff' : question.startsWith('\nKito asks:') ? 'clarification' : 'question';
+  const purpose = question.includes('Type yes to continue') ? 'approval' : question.startsWith('Chrome needs you:') ? 'handoff' : question.startsWith('\nRax asks:') ? 'clarification' : 'question';
   pendingQuestion = { id, resolve, purpose, question };
   send({ kind: 'request_input', id, question, purpose });
 }));
@@ -66,7 +66,7 @@ async function run(record, message) {
     const detail = error.message || String(error);
     if (!controller.signal.aborted) {
       journal(record, 'error', detail);
-      record.summary = `Kito stopped: ${detail}`;
+      record.summary = `Rax stopped: ${detail}`;
     }
     event({ type: controller.signal.aborted ? 'stopped' : 'error', id: record.id, text: detail });
     try { await saveApplication(record); }
@@ -93,8 +93,8 @@ async function handle(command) {
       await ensureState();
       data = { applications: summaries(await listApplications()), homeChat: await readHomeChat(), profile: await readProfile(), model: config.model, curatorModel: config.curatorModel, keySet: Boolean(config.apiKey), dataDir: config.dataDir, documentsDir: paths().documentsDir, activeId: active?.id || null, pausedByUser: active?.paused || false, stopping: Boolean(active?.controller.signal.aborted), pendingPrompt: pendingQuestion && { id: pendingQuestion.id, purpose: pendingQuestion.purpose, question: pendingQuestion.question } };
     } else if (action === 'home_request') {
-      if (active) throw new Error('An application is running. Use its conversation to guide Kito.');
-      if (homeBusy) throw new Error('Kito is still answering your previous request.');
+      if (active) throw new Error('An application is running. Use its conversation to guide Rax.');
+      if (homeBusy) throw new Error('Rax is still answering your previous request.');
       requireModelConfig();
       const message = String(command.message || '').trim();
       if (!message || message.length > 5000) throw new Error('Message must be 1 to 5,000 characters');
@@ -109,10 +109,10 @@ async function handle(command) {
         let action = decision.action;
         let id = null;
         if (action === 'start') {
-          if (active) throw new Error('Another application started while Kito was planning.');
+          if (active) throw new Error('Another application started while Rax was planning.');
           const source = decision.url || `https://www.bing.com/search?q=${encodeURIComponent(decision.searchQuery || '')}`;
           const url = new URL(source);
-          if (!['http:', 'https:'].includes(url.protocol) || !decision.url && !decision.searchQuery) throw new Error('Kito needs a direct link or a search query before starting.');
+          if (!['http:', 'https:'].includes(url.protocol) || !decision.url && !decision.searchQuery) throw new Error('Rax needs a direct link or a search query before starting.');
           const goal = String(decision.goal || message).slice(0, 5000);
           const record = await createApplication(url.toString(), goal);
           id = record.id;
@@ -147,7 +147,7 @@ async function handle(command) {
       active.controller.abort();
       active.resumeWaiters.splice(0).forEach(resolve => resolve());
       if (pendingQuestion) { const id = pendingQuestion.id; pendingQuestion.resolve(''); pendingQuestion = null; event({ type: 'input_resolved', id }); }
-      event({ type: 'stopping', id: stoppingId, text: 'Stopping Kito. Chrome stays open.' });
+      event({ type: 'stopping', id: stoppingId, text: 'Stopping Rax. Chrome stays open.' });
       data = { stopping: stoppingId };
     } else if (action === 'takeover') {
       if (!active) throw new Error('No application is running');
@@ -156,18 +156,18 @@ async function handle(command) {
         active.takeoverEpoch++;
         active.record.controlMode = 'human';
         await saveApplication(active.record);
-        event({ type: 'takeover', id: active.id, text: 'You control Chrome. Kito will wait at the next safe point.' });
+        event({ type: 'takeover', id: active.id, text: 'You control Chrome. Rax will wait at the next safe point.' });
       }
       data = { paused: true, id: active.id };
     } else if (action === 'handback') {
-      if (!active || !active.paused) throw new Error('Kito is not in takeover mode');
+      if (!active || !active.paused) throw new Error('Rax is not in takeover mode');
       const note = String(command.message || '').trim().slice(0, 2000);
       active.record.controlMode = 'agent';
       active.paused = false;
       active.messages.push(note || 'I finished using Chrome. Inspect the current page and continue.');
       await saveApplication(active.record);
       active.resumeWaiters.splice(0).forEach(resolve => resolve());
-      event({ type: 'handback', id: active.id, text: 'Kito is inspecting Chrome and continuing.' });
+      event({ type: 'handback', id: active.id, text: 'Rax is inspecting Chrome and continuing.' });
       data = { resumed: true, id: active.id };
     } else if (action === 'answer') {
       if (!pendingQuestion || pendingQuestion.id !== command.id) throw new Error('No matching question');
@@ -188,7 +188,7 @@ async function handle(command) {
         event({ type: 'input_resolved', id });
         data = { delivered: true, id: record.id };
       } else if (active?.id === record.id) {
-        throw new Error('Kito is working. Stop the run before sending another message.');
+        throw new Error('Rax is working. Stop the run before sending another message.');
       } else {
         requireModelConfig();
         if (record.model && record.model !== config.model) throw new Error(`This application used ${record.model}; select that model to continue it.`);

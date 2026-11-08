@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import readline from 'node:readline';
 import { closeTestChrome } from './close-test-chrome.mjs';
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-stop-browser-'));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-stop-browser-'));
 let responseMode = 'hang';
 let modelStarted;
 const modelRequest = new Promise(resolve => { modelStarted = resolve; });
@@ -29,7 +29,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const child = spawn('node', ['src/desktop-bridge.js'], {
   cwd: path.resolve(import.meta.dirname, '..'),
-  env: { ...process.env, KITO_DATA_DIR: path.join(temporary, 'data'), MODEL_API_KEY: 'local-test-key', MUSE_MODEL: 'local-test-model', MUSE_BASE_URL: origin },
+  env: { ...process.env, RAX_DATA_DIR: path.join(temporary, 'data'), MODEL_API_KEY: 'local-test-key', MUSE_MODEL: 'local-test-model', MUSE_BASE_URL: origin },
   stdio: ['pipe', 'pipe', 'pipe'],
 });
 const messages = [];

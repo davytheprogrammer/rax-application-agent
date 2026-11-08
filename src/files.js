@@ -4,13 +4,14 @@ import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import mammoth from 'mammoth';
+import { paths } from './state.js';
 const execFileAsync = promisify(execFile);
 const ignored = new Set(['node_modules', '.git', '.cache', '.local', '.npm', '.config', 'chrome-profile']);
 const textExtensions = new Set(['.txt', '.md', '.json', '.csv', '.tsv', '.yaml', '.yml', '.html', '.htm', '.xml', '.log', '.js', '.ts', '.py', '.env.example']);
 function absolute(p) { return path.resolve(p.replace(/^~(?=\/|$)/, os.homedir())); }
 
 export async function browseDirectory(directory, query = '') {
-  const current = absolute(String(directory || path.join(os.homedir(), 'Documents', 'Kito')));
+  const current = absolute(String(directory || paths().documentsDir));
   const stat = await fs.stat(current);
   if (!stat.isDirectory()) throw new Error('Choose a folder to browse');
   const entries = await fs.readdir(current, { withFileTypes: true });
@@ -27,7 +28,7 @@ export async function browseDirectory(directory, query = '') {
   return {
     directory: current,
     parent: path.dirname(current),
-    locations: { kito: path.join(os.homedir(), 'Documents', 'Kito'), downloads: path.join(os.homedir(), 'Downloads'), home: os.homedir() },
+    locations: { rax: paths().documentsDir, downloads: path.join(os.homedir(), 'Downloads'), home: os.homedir() },
     items: items.filter(Boolean).sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
     truncated: eligible.length > visible.length,
   };

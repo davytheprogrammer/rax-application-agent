@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { browseDirectory } from '../src/files.js';
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-files-'));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-files-'));
 try {
   await fs.mkdir(path.join(temporary, 'Folder'));
   await fs.writeFile(path.join(temporary, 'resume.pdf'), 'controlled file');

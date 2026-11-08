@@ -4,9 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright';
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-electron-files-'));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-electron-files-'));
 const dataDir = path.join(temporary, 'data');
-process.env.KITO_DATA_DIR = dataDir;
+process.env.RAX_DATA_DIR = dataDir;
 process.env.MUSE_MODEL = 'local-test-model';
 process.env.MODEL_API_KEY = 'local-test-key';
 const { createApplication, saveApplication } = await import('../src/state.js');
@@ -25,7 +25,7 @@ try {
     if (window) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  assert.ok(window, 'Kito main window opened');
+  assert.ok(window, 'Rax main window opened');
   await window.locator('#rail-applications .rail-app').first().click();
   await window.locator('#attach-btn').click();
   await window.locator('#file-overlay').waitFor({ state: 'visible' });
@@ -33,7 +33,7 @@ try {
   await window.locator('#file-path').fill(temporary);
   await window.locator('#file-path').press('Enter');
   await window.locator('#file-browser-list').getByText('resume.txt').click();
-  if (process.env.KITO_CAPTURE_FILE_UI === '1') await window.screenshot({ path: '/tmp/kito-file-selector.png' });
+  if (process.env.RAX_CAPTURE_FILE_UI === '1') await window.screenshot({ path: '/tmp/rax-file-selector.png' });
   await window.locator('#file-select').click();
   await window.locator('#file-overlay').waitFor({ state: 'hidden' });
   const saved = JSON.parse(await fs.readFile(path.join(dataDir, 'applications', `${record.id}.json`), 'utf8'));

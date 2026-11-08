@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-integration-'));
-process.env.KITO_DATA_DIR = path.join(temporary, 'data');
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-integration-'));
+process.env.RAX_DATA_DIR = path.join(temporary, 'data');
 process.env.MODEL_API_KEY = 'local-test-key';
 process.env.MUSE_MODEL = 'local-test-model';
 

@@ -12,7 +12,7 @@ const soundTimes = new Map();
 let audioContext;
 
 function soundsEnabled() {
-  try { return localStorage.getItem('kito:sounds') !== 'off'; }
+  try { return (localStorage.getItem('rax:sounds') ?? localStorage.getItem('kito:sounds')) !== 'off'; }
   catch { return true; }
 }
 function renderSoundControl() {
@@ -54,7 +54,7 @@ function toast(message) {
   toastTimer = setTimeout(() => { node.hidden = true; }, 4200);
 }
 async function call(action, values = {}) {
-  try { return await window.kito.command(action, values); }
+  try { return await window.rax.command(action, values); }
   catch (error) { toast(error.message || String(error)); throw error; }
 }
 function text(node, value) { node.textContent = value == null ? '' : String(value); }
@@ -77,11 +77,11 @@ function chatLine(role, value, targets = [byId('chat-history'), byId('companion-
     line.className = `chat-line ${role === 'user' ? 'user' : ''}`;
     const avatar = document.createElement('div');
     avatar.className = 'chat-avatar';
-    avatar.textContent = role === 'user' ? 'Y' : 'K';
+    avatar.textContent = role === 'user' ? 'Y' : 'R';
     const body = document.createElement('div'); body.className = 'chat-body';
     const speaker = document.createElement('div');
     speaker.className = 'speaker';
-    speaker.textContent = role === 'user' ? 'You' : 'Kito';
+    speaker.textContent = role === 'user' ? 'You' : 'Rax';
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
     bubble.textContent = String(value || '');
@@ -97,7 +97,7 @@ function renderChat(items) {
   for (const item of items || []) chatLine(item.role, item.text);
   if (!(items || []).length && !state.activeId) {
     const empty = document.createElement('div'); empty.className = 'chat-empty';
-    empty.innerHTML = '<svg><use href="#i-spark"/></svg><strong>Ready when you are.</strong><p>Resume this application or send Kito a message to continue from saved context.</p>';
+    empty.innerHTML = '<svg><use href="#i-spark"/></svg><strong>Ready when you are.</strong><p>Resume this application or send Rax a message to continue from saved context.</p>';
     byId('chat-history').appendChild(empty);
   }
 }
@@ -151,7 +151,7 @@ async function browseFileDirectory(directory, initial = false, query = '') {
     let result = await call('list_local_files', { directory, query });
     if (initial && !query && !result.items.length && result.locations.downloads && result.directory !== result.locations.downloads) {
       result = await call('list_local_files', { directory: result.locations.downloads });
-      text(byId('file-hint'), 'Kito documents is empty, so Downloads is shown.');
+      text(byId('file-hint'), 'Rax documents is empty, so Downloads is shown.');
     } else text(byId('file-hint'), result.truncated ? 'Showing the first 500 items in this folder.' : 'Select a file, or open a folder.');
     if (fileBrowser !== browser) return;
     fileBrowser.directory = result.directory;
@@ -184,8 +184,8 @@ async function openFileBrowser({ mode, requestId = null, purpose = '', applicati
     byId('file-overlay').hidden = true;
   }
   fileBrowser = { mode, requestId, applicationId, directory: '', parent: '', locations: {}, items: [], selected: null, loading: false, queuedDirectory: null, truncated: false, serverQuery: '' };
-  text(byId('file-title'), mode === 'agent' ? 'Choose a file for Kito' : 'Attach a file');
-  text(byId('file-purpose'), purpose || (mode === 'agent' ? 'Kito needs a source document to continue.' : 'Select a local file to add to this application.'));
+  text(byId('file-title'), mode === 'agent' ? 'Choose a file for Rax' : 'Attach a file');
+  text(byId('file-purpose'), purpose || (mode === 'agent' ? 'Rax needs a source document to continue.' : 'Select a local file to add to this application.'));
   text(byId('file-select'), mode === 'agent' ? 'Use selected file' : 'Attach selected file');
   byId('file-overlay').hidden = false;
   await browseFileDirectory(state.lastFileDirectory || state.documentsDir || '', true);
@@ -221,7 +221,7 @@ function renderIssue(issue, announce = false) {
   const key = issue && issueKey(issue);
   banner.hidden = !issue || dismissedIssues.has(key);
   if (!issue || banner.hidden) return;
-  const title = issue.type === 'tool_error' ? 'Kito hit a page issue' : issue.type === 'curation' ? 'Answer review needs attention' : issue.type === 'preview' ? 'Chrome preview issue' : 'Kito needs attention';
+  const title = issue.type === 'tool_error' ? 'Rax hit a page issue' : issue.type === 'curation' ? 'Answer review needs attention' : issue.type === 'preview' ? 'Chrome preview issue' : 'Rax needs attention';
   const detail = issue.name ? `${activityLabel(issue.name)}: ${issue.text}` : issue.text;
   text(byId('issue-title'), title);
   text(byId('issue-text'), detail);
@@ -245,7 +245,7 @@ function renderTaskCard(record) {
   const list = document.createElement('div'); list.className = 'task-list';
   const toolEvents = (record.events || []).filter(item => item.type === 'tool' || item.type === 'tool_error').slice(-5);
   if (!toolEvents.length) {
-    const empty = document.createElement('div'); empty.className = 'task-empty'; empty.textContent = state.activeId === record.id ? 'Kito is getting started. Actions will appear here as they happen.' : 'No recorded tool actions yet.'; list.appendChild(empty);
+    const empty = document.createElement('div'); empty.className = 'task-empty'; empty.textContent = state.activeId === record.id ? 'Rax is getting started. Actions will appear here as they happen.' : 'No recorded tool actions yet.'; list.appendChild(empty);
   }
   for (const item of toolEvents) {
     const row = document.createElement('div'); row.className = `task-row ${item.type === 'tool_error' ? 'tool-error' : ''} ${item.pending ? 'pending' : ''}`;
@@ -266,7 +266,7 @@ function renderConversation(record) {
     if (item.type === 'message' && typeof item.detail === 'string') items.push({ role: 'assistant', text: item.detail, at: item.at || '' });
     if (['tool_error', 'error', 'issue'].includes(item.type)) {
       const detail = typeof item.detail === 'string' ? item.detail : item.detail?.error || '';
-      if (detail) items.push({ role: 'assistant', text: `Kito hit an issue: ${detail}`, at: item.at || '' });
+      if (detail) items.push({ role: 'assistant', text: `Rax hit an issue: ${detail}`, at: item.at || '' });
     }
   }
   items.sort((a, b) => a.at.localeCompare(b.at));
@@ -280,7 +280,7 @@ function renderConversation(record) {
   if (!items.some(item => item.role === 'assistant') && record.summary) chatLine('assistant', record.summary, [container]);
   if (items.length === 0 && !record.summary) {
     const empty = document.createElement('div'); empty.className = 'chat-empty';
-    empty.innerHTML = '<svg><use href="#i-spark"/></svg><strong>Ready when you are.</strong><p>Resume this application or send Kito a message to continue from saved context.</p>';
+    empty.innerHTML = '<svg><use href="#i-spark"/></svg><strong>Ready when you are.</strong><p>Resume this application or send Rax a message to continue from saved context.</p>';
     container.appendChild(empty);
   }
   renderTaskCard(record);
@@ -353,7 +353,7 @@ function renderControls() {
   byId('new-app-btn').disabled = offline || running;
   byId('setup-agent-btn').hidden = offline || state.configured;
   const mode = !state.backendOnline ? 'offline' : !state.configured ? 'setup' : state.stopping ? 'stopping' : state.pausedByUser ? 'human' : running && prompt ? 'waiting' : running ? 'running' : state.homeBusy ? 'thinking' : 'idle';
-  const label = ({ offline: 'Agent unavailable', setup: 'Set up Muse', stopping: 'Stopping Kito', human: 'You control Chrome', waiting: prompt === 'handoff' ? 'Waiting for sign-in' : prompt === 'approval' ? 'Approval needed' : prompt === 'file' ? 'Choose a file' : 'Waiting for your answer', running: 'Kito is working', thinking: 'Kito is thinking', idle: 'Not running' })[mode];
+  const label = ({ offline: 'Agent unavailable', setup: 'Set up Muse', stopping: 'Stopping Rax', human: 'You control Chrome', waiting: prompt === 'handoff' ? 'Waiting for sign-in' : prompt === 'approval' ? 'Approval needed' : prompt === 'file' ? 'Choose a file' : 'Waiting for your answer', running: 'Rax is working', thinking: 'Rax is thinking', idle: 'Not running' })[mode];
   text(byId('rail-status'), label);
   byId('connection-status').classList.toggle('offline', !state.backendOnline);
   byId('connection-status').classList.toggle('setup', state.backendOnline && !state.configured);
@@ -364,19 +364,19 @@ function renderControls() {
   const banner = byId('run-banner');
   banner.className = `run-banner ${mode}`;
   text(byId('run-banner-title'), label);
-  text(byId('run-banner-detail'), mode === 'waiting' ? prompt === 'handoff' ? 'Finish sign-in or verification in Chrome, then click I finished in Chrome.' : prompt === 'approval' ? 'Review the action and choose Approve or Deny.' : prompt === 'file' ? 'Choose a file in the desktop picker.' : 'Reply to Kito’s question below so it can continue.' : mode === 'running' ? state.runDetail || 'Kito is working through this application. Stop the agent to send a new instruction.' : mode === 'stopping' ? 'Kito is stopping. Chrome will remain open.' : mode === 'human' ? 'Finish your work in Chrome, then hand control back to Kito.' : mode === 'idle' ? 'Send a message to continue this application.' : label);
+  text(byId('run-banner-detail'), mode === 'waiting' ? prompt === 'handoff' ? 'Finish sign-in or verification in Chrome, then click I finished in Chrome.' : prompt === 'approval' ? 'Review the action and choose Approve or Deny.' : prompt === 'file' ? 'Choose a file in the desktop picker.' : 'Reply to Rax’s question below so it can continue.' : mode === 'running' ? state.runDetail || 'Rax is working through this application. Stop the agent to send a new instruction.' : mode === 'stopping' ? 'Rax is stopping. Chrome will remain open.' : mode === 'human' ? 'Finish your work in Chrome, then hand control back to Rax.' : mode === 'idle' ? 'Send a message to continue this application.' : label);
   const selected = state.applications.find(item => item.id === (state.activeId || state.selectedId));
   text(byId('companion-title'), selected?.goal || 'No application selected');
   text(byId('companion-url'), selected?.currentUrl || selected?.url || 'Start one in the full workspace.');
-  text(byId('composer-title'), awaitingReply ? 'Kito needs your answer' : running ? 'Stop Kito to send a new message' : 'Message Kito to continue');
-  text(byId('composer-hint'), awaitingReply ? 'Your reply resumes Kito automatically.' : running ? prompt === 'handoff' ? 'Complete sign-in in Chrome, then use the button here.' : 'Kito is working. Stop it before sending new instructions.' : 'Kito can finish and submit applications automatically.');
-  byId('chat-input').placeholder = awaitingReply ? 'Type your answer to Kito…' : running ? 'Stop Kito to send a message' : 'Message Kito to continue…';
-  byId('companion-input').placeholder = awaitingReply ? 'Type your answer to Kito…' : running ? 'Stop Kito to send a message' : 'Message Kito to continue…';
+  text(byId('composer-title'), awaitingReply ? 'Rax needs your answer' : running ? 'Stop Rax to send a new message' : 'Message Rax to continue');
+  text(byId('composer-hint'), awaitingReply ? 'Your reply resumes Rax automatically.' : running ? prompt === 'handoff' ? 'Complete sign-in in Chrome, then use the button here.' : 'Rax is working. Stop it before sending new instructions.' : 'Rax can finish and submit applications automatically.');
+  byId('chat-input').placeholder = awaitingReply ? 'Type your answer to Rax…' : running ? 'Stop Rax to send a message' : 'Message Rax to continue…';
+  byId('companion-input').placeholder = awaitingReply ? 'Type your answer to Rax…' : running ? 'Stop Rax to send a message' : 'Message Rax to continue…';
   byId('suggest-attach').disabled = offline || !state.selectedId;
   byId('suggest-answers').disabled = offline || !state.selectedId;
   text(byId('suggest-answers'), state.current?.preSubmitSnapshot ? 'Review answers' : running ? 'View activity' : 'Resume application');
   byId('suggest-control').disabled = offline || running && Boolean(prompt);
-  text(byId('suggest-control'), running ? state.pausedByUser ? 'Hand back to Kito' : 'Take over Chrome' : 'New application');
+  text(byId('suggest-control'), running ? state.pausedByUser ? 'Hand back to Rax' : 'Take over Chrome' : 'New application');
 }
 function renderProgress(record) {
   const list = byId('progress-list'); clear(list);
@@ -386,7 +386,7 @@ function renderProgress(record) {
   const reviewDone = Boolean(record.confirmation);
   const phases = [
     ['Application created', true, record.createdAt ? String(record.createdAt).slice(0, 16).replace('T', ' ') : 'Saved locally'],
-    ['Working through the form', workingDone, status === 'active' ? state.pendingPrompt ? 'Waiting for you' : state.pausedByUser ? 'You have control' : 'Kito is working' : hasWork ? 'Activity saved' : 'Waiting to begin'],
+    ['Working through the form', workingDone, status === 'active' ? state.pendingPrompt ? 'Waiting for you' : state.pausedByUser ? 'You have control' : 'Rax is working' : hasWork ? 'Activity saved' : 'Waiting to begin'],
     ['Review & refine', reviewDone, record.preSubmitSnapshot ? 'Form state captured' : 'Checking answers before submission'],
     ['Submitted', status === 'submitted', record.confirmation ? 'Confirmation recorded' : 'Awaiting confirmation']
   ];
@@ -424,7 +424,7 @@ function renderApplication(record) {
     const original = new URL(record.url);
     const current = new URL(record.currentUrl || record.url);
     overview = `Target: ${original.hostname}\nCurrent page: ${current.pathname === '/' ? 'Homepage' : current.pathname}`;
-    if (current.pathname === '/' && record.status !== 'submitted') overview += '\nUse a direct form link or tell Kito which program to find.';
+    if (current.pathname === '/' && record.status !== 'submitted') overview += '\nUse a direct form link or tell Rax which program to find.';
   } catch { /* The saved URL is still shown in the workspace heading. */ }
   text(byId('overview-summary'), overview);
   text(byId('overview-status'), record.status || 'paused');
@@ -484,11 +484,11 @@ function showTab(tab) {
   for (const button of document.querySelectorAll('.nav-item')) button.classList.toggle('active', button.dataset.tab === tab);
   for (const section of document.querySelectorAll('.tab-content')) section.classList.toggle('active', section.id === `${tab}-tab`);
   text(byId('page-title'), tab === 'profile' ? 'Knowledge' : tab === 'settings' ? 'Agent settings' : 'Applications');
-  text(byId('page-subtitle'), tab === 'profile' ? 'The verified context Kito can reuse in applications.' : tab === 'settings' ? 'Configure the local agent and its model.' : 'Your personal agent for every application, from first draft to final submission.');
+  text(byId('page-subtitle'), tab === 'profile' ? 'The verified context Rax can reuse in applications.' : tab === 'settings' ? 'Configure the local agent and its model.' : 'Your personal agent for every application, from first draft to final submission.');
 }
 function showApproval(message) {
   state.pendingPrompt = message;
-  text(byId('approval-title'), message.question.startsWith('Review this application') ? 'Review before submission' : 'Review Kito\'s action');
+  text(byId('approval-title'), message.question.startsWith('Review this application') ? 'Review before submission' : 'Review Rax\'s action');
   text(byId('approval-text'), message.question.replace(/ Type yes to continue:\s*$/, ''));
   byId('approval-overlay').hidden = false;
   renderControls();
@@ -512,7 +512,7 @@ function onMessage(message) {
       byId('handoff-btn').hidden = false;
       byId('companion-done').hidden = false;
     } else {
-      chatLine('assistant', message.question.replace('Kito asks:', '').replace(/\n>\s*$/, '').trim());
+      chatLine('assistant', message.question.replace('Rax asks:', '').replace(/\n>\s*$/, '').trim());
     }
     renderControls();
     if (purpose !== 'handoff') (companionMode ? byId('companion-input') : byId('chat-input')).focus();
@@ -541,10 +541,10 @@ function onMessage(message) {
   if (message.type === 'record_updated') { state.activeId = null; state.pendingPrompt = null; state.pausedByUser = false; state.stopping = false; state.runDetail = ''; byId('handoff-btn').hidden = true; byId('companion-done').hidden = true; void refresh(); }
   if (message.type === 'url') { text(byId('run-url'), message.url); text(byId('companion-url'), message.url); }
   if (message.type === 'screenshot') {
-    void window.kito.readImage(message.path).then(url => { byId('screenshot').src = url; byId('screenshot').hidden = false; byId('screenshot-empty').hidden = true; }).catch(error => renderIssue({ id: message.id, type: 'preview', text: `Could not show Chrome preview: ${error.message || error}` }, true));
+    void window.rax.readImage(message.path).then(url => { byId('screenshot').src = url; byId('screenshot').hidden = false; byId('screenshot-empty').hidden = true; }).catch(error => renderIssue({ id: message.id, type: 'preview', text: `Could not show Chrome preview: ${error.message || error}` }, true));
   }
   if (message.type === 'message') {
-    appendActivity(`Kito: ${message.text}`, 'message');
+    appendActivity(`Rax: ${message.text}`, 'message');
     chatLine('assistant', message.text);
     if (state.current?.id === message.id) state.current.summary = message.text;
   }
@@ -575,8 +575,8 @@ async function sendChat(value) {
   const id = state.activeId || state.selectedId;
   if (!id) { toast('Start or select an application first.'); return; }
   const prompt = state.pendingPrompt;
-  if (state.activeId && !['clarification', 'question'].includes(prompt?.purpose)) { toast('Stop Kito before sending a new message.'); return; }
-  if (state.stopping) { toast('Kito is stopping. Wait for the run to finish.'); return; }
+  if (state.activeId && !['clarification', 'question'].includes(prompt?.purpose)) { toast('Stop Rax before sending a new message.'); return; }
+  if (state.stopping) { toast('Rax is stopping. Wait for the run to finish.'); return; }
   if (prompt?.purpose === 'handoff') { toast('Finish in Chrome, then use Done in Chrome.'); return; }
   if (prompt?.purpose === 'approval') { toast('Choose Approve or Deny before sending another message.'); return; }
   await call('chat', { id, text: body });
@@ -587,7 +587,7 @@ async function sendChat(value) {
 async function sendHomeRequest() {
   const message = byId('home-input').value.trim();
   if (!message || state.homeBusy) return;
-  if (state.activeId) { toast('Use the running application conversation to guide Kito.'); return; }
+  if (state.activeId) { toast('Use the running application conversation to guide Rax.'); return; }
   if (!state.backendOnline) { toast('The local agent is unavailable.'); return; }
   const history = [...state.homeChat];
   state.homeBusy = true;
@@ -629,7 +629,7 @@ async function start() {
   if (!['http:', 'https:'].includes(parsed.protocol)) { toast('Use an HTTP or HTTPS application URL.'); return; }
   const goal = byId('start-goal').value.trim() || 'Complete this application accurately.';
   if (parsed.pathname === '/' && !parsed.search && /^complete this application accurately\.?$/i.test(goal)) {
-    toast('This is a homepage. Tell Kito which application or program to find.');
+    toast('This is a homepage. Tell Rax which application or program to find.');
     byId('start-goal').focus();
     return;
   }
@@ -659,14 +659,14 @@ async function savedAnswers() {
 }
 function bind(id, handler) { byId(id).addEventListener('click', () => { Promise.resolve(handler()).catch(() => {}); }); }
 for (const button of document.querySelectorAll('.nav-item')) button.addEventListener('click', () => showTab(button.dataset.tab));
-bind('documents-btn', () => window.kito.openDocuments());
-bind('companion-btn', () => window.kito.showCompanion());
+bind('documents-btn', () => window.rax.openDocuments());
+bind('companion-btn', () => window.rax.showCompanion());
 bind('new-app-btn', openStart);
 bind('setup-agent-btn', () => showTab('settings'));
 bind('quick-start', openStart);
 bind('quick-history', () => { showTab('applications'); showView('history'); renderHistory(); });
 bind('quick-profile', () => showTab('profile'));
-bind('quick-docs', () => window.kito.openDocuments());
+bind('quick-docs', () => window.rax.openDocuments());
 bind('back-home-btn', () => showView('welcome'));
 bind('close-start-btn', () => { byId('start-overlay').hidden = true; });
 bind('composer-attach', attach);
@@ -681,7 +681,7 @@ bind('file-cancel', closeFileBrowser);
 bind('file-select', selectFileBrowserFile);
 bind('file-up', () => browseFileDirectory(fileBrowser?.parent));
 bind('file-go', () => browseFileDirectory(byId('file-path').value));
-bind('file-kito', () => browseFileDirectory(fileBrowser?.locations.kito));
+bind('file-rax', () => browseFileDirectory(fileBrowser?.locations.rax));
 bind('file-downloads', () => browseFileDirectory(fileBrowser?.locations.downloads));
 bind('file-home', () => browseFileDirectory(fileBrowser?.locations.home));
 byId('file-search').addEventListener('input', () => {
@@ -705,16 +705,16 @@ bind('handoff-btn', finishHandoff);
 bind('companion-done', finishHandoff);
 bind('answers-btn', savedAnswers);
 bind('attach-btn', attach);
-bind('open-main-btn', () => window.kito.showMain());
-bind('close-companion-btn', () => window.kito.showMain());
+bind('open-main-btn', () => window.rax.showMain());
+bind('close-companion-btn', () => window.rax.showMain());
 bind('approve-btn', () => answerApproval(true));
 bind('deny-btn', () => answerApproval(false));
 bind('close-answers-btn', () => { byId('answers-overlay').hidden = true; });
 bind('save-profile-btn', async () => { await call('save_profile', { profile: byId('profile-text').value }); state.profileDirty = false; toast('Knowledge saved.'); });
 bind('save-settings-btn', async () => { await call('save_settings', { model: byId('model-input').value.trim(), curatorModel: byId('curator-model-input').value.trim(), apiKey: byId('api-key-input').value.trim() }); byId('api-key-input').value = ''; toast('Muse settings saved.'); await refresh(); });
-bind('sound-toggle', () => { try { localStorage.setItem('kito:sounds', soundsEnabled() ? 'off' : 'on'); } catch {} renderSoundControl(); });
+bind('sound-toggle', () => { try { localStorage.setItem('rax:sounds', soundsEnabled() ? 'off' : 'on'); } catch {} renderSoundControl(); });
 bind('sound-preview', () => { void playSound('success', true); });
-window.addEventListener('storage', event => { if (event.key === 'kito:sounds') renderSoundControl(); });
+window.addEventListener('storage', event => { if (event.key === 'rax:sounds') renderSoundControl(); });
 byId('profile-text').addEventListener('input', () => { state.profileDirty = true; });
 byId('start-overlay').addEventListener('click', event => { if (event.target === byId('start-overlay')) byId('start-overlay').hidden = true; });
 byId('start-url').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); byId('start-goal').focus(); } });
@@ -725,6 +725,6 @@ byId('home-input').addEventListener('keydown', event => {
 });
 byId('chat-form').addEventListener('submit', event => { event.preventDefault(); void sendChat(byId('chat-input').value); });
 byId('companion-chat-form').addEventListener('submit', event => { event.preventDefault(); void sendChat(byId('companion-input').value); });
-window.kito.onMessage(onMessage);
+window.rax.onMessage(onMessage);
 renderSoundControl();
 void refresh().catch(() => {});

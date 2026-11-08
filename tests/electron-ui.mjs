@@ -12,13 +12,13 @@ try {
     window.__calls = [];
     window.__activeId = null;
     window.__emit = message => listeners.forEach(listener => listener(message));
-    window.kito = {
+    window.rax = {
       command: async (action, values) => {
         window.__calls.push({ action, values });
-        if (action === 'state') return { applications: window.__activeId ? [{ id: window.__activeId, goal: 'Controlled application', url: 'https://example.org/apply', status: 'active' }, { id: 'older-app', goal: 'Older application', url: 'https://example.org/older', status: 'paused' }] : [], profile: '# Founder profile', model: 'local-test-model', curatorModel: '', keySet: true, dataDir: '/tmp/kito-test', documentsDir: '/docs', activeId: window.__activeId, pausedByUser: false };
+        if (action === 'state') return { applications: window.__activeId ? [{ id: window.__activeId, goal: 'Controlled application', url: 'https://example.org/apply', status: 'active' }, { id: 'older-app', goal: 'Older application', url: 'https://example.org/older', status: 'paused' }] : [], profile: '# Founder profile', model: 'local-test-model', curatorModel: '', keySet: true, dataDir: '/tmp/rax-test', documentsDir: '/docs', activeId: window.__activeId, pausedByUser: false };
         if (action === 'list_local_files') {
           const directory = values.directory || '/docs';
-          return { directory, parent: '/home', locations: { kito: '/docs', downloads: '/downloads', home: '/home' }, items: directory === '/downloads' ? [{ name: 'resume.pdf', path: '/downloads/resume.pdf', type: 'file', bytes: 32768 }, { name: 'Projects', path: '/downloads/Projects', type: 'directory', bytes: null }] : [], truncated: false };
+          return { directory, parent: '/home', locations: { rax: '/docs', downloads: '/downloads', home: '/home' }, items: directory === '/downloads' ? [{ name: 'resume.pdf', path: '/downloads/resume.pdf', type: 'file', bytes: 32768 }, { name: 'Projects', path: '/downloads/Projects', type: 'directory', bytes: null }] : [], truncated: false };
         }
         if (action === 'start') { window.__activeId = 'test-app'; return { id: 'test-app' }; }
         if (action === 'home_request') {
@@ -56,7 +56,7 @@ try {
   await main.locator('.rail-app').filter({ hasText: 'Older application' }).click();
   assert.equal(await main.locator('#work-title').textContent(), 'Controlled application');
   assert.equal(await main.locator('#chat-input').isDisabled(), true);
-  assert.equal(await main.locator('#run-banner-title').textContent(), 'Kito is working');
+  assert.equal(await main.locator('#run-banner-title').textContent(), 'Rax is working');
   await main.locator('#attach-btn').click();
   await main.locator('#file-browser-list').getByText('resume.pdf').waitFor();
   assert.equal(await main.locator('#file-path').inputValue(), '/downloads');
@@ -78,7 +78,7 @@ try {
   await main.evaluate(() => window.__emit({ kind: 'event', type: 'tool_error', id: 'test-app', name: 'browser_click', text: 'Control did not respond' }));
   assert.equal(await main.locator('#issue-banner').isVisible(), true);
   assert.match(await main.locator('#issue-text').textContent(), /Control did not respond/);
-  assert.equal(await main.locator('#chat-history').getByText(/Kito hit a page issue/).isVisible(), true);
+  assert.equal(await main.locator('#chat-history').getByText(/Rax hit a page issue/).isVisible(), true);
   await main.locator('#issue-dismiss').click();
   assert.equal(await main.locator('#issue-banner').isHidden(), true);
   await main.evaluate(() => window.__emit({ kind: 'event', type: 'error', id: 'test-app', text: 'Muse is unavailable' }));
@@ -109,7 +109,7 @@ try {
   assert.equal(await companion.locator('#companion-status').textContent(), 'Waiting for sign-in');
   await companion.locator('#companion-done').click();
   await companion.waitForFunction(() => window.__calls.some(item => item.action === 'answer' && item.values.id === 8));
-  await companion.evaluate(() => window.__emit({ kind: 'request_input', id: 9, purpose: 'clarification', question: '\nKito asks: What is the project name?\n> ' }));
+  await companion.evaluate(() => window.__emit({ kind: 'request_input', id: 9, purpose: 'clarification', question: '\nRax asks: What is the project name?\n> ' }));
   assert.equal(await companion.locator('#companion-input').isEnabled(), true);
   assert.equal(await companion.locator('#companion-status').textContent(), 'Waiting for your answer');
   await companion.locator('#companion-input').fill('Verified Project');
@@ -117,10 +117,10 @@ try {
   await companion.waitForFunction(() => window.__calls.some(item => item.action === 'chat' && item.values.text === 'Verified Project'));
   await companion.evaluate(() => window.__emit({ kind: 'event', type: 'input_resolved', id: 9 }));
   assert.equal(await companion.locator('#companion-input').isDisabled(), true);
-  assert.equal(await companion.locator('#companion-status').textContent(), 'Kito is working');
+  assert.equal(await companion.locator('#companion-status').textContent(), 'Rax is working');
   const natural = await context.newPage();
   await natural.goto(`${pageUrl}?mode=main`);
-  await natural.locator('#home-input').fill('Hi Kito');
+  await natural.locator('#home-input').fill('Hi Rax');
   await natural.locator('#home-send').click();
   await natural.locator('#home-chat-history').getByText('Tell me what you want to work on.').waitFor();
   assert.equal(await natural.locator('#welcome-view').isVisible(), true);

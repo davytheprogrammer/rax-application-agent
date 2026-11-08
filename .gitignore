@@ -41,4 +41,5 @@ __pycache__/
 
 # Old local design drafts; the maintained UI lives in desktop/electron/
 PLAN.md
+rax-ui-preview.html
 kito-ui-preview.html

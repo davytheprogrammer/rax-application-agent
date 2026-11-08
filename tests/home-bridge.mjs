@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import readline from 'node:readline';
 import { closeTestChrome } from './close-test-chrome.mjs';
 
-const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'kito-home-bridge-'));
+const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'rax-home-bridge-'));
 let plannerCalls = 0;
 const server = http.createServer(async (request, response) => {
   if (request.url === '/apply') { response.setHeader('content-type', 'text/html'); response.end('<!doctype html><title>Test application</title><h1>Test application</h1>'); return; }
@@ -32,7 +32,7 @@ const server = http.createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const child = spawn('node', ['src/desktop-bridge.js'], { cwd: path.resolve(import.meta.dirname, '..'), env: { ...process.env, KITO_DATA_DIR: path.join(temp, 'data'), MODEL_API_KEY: 'local-test-key', MUSE_MODEL: 'local-test-model', MUSE_BASE_URL: `${origin}/v1` }, stdio: ['pipe', 'pipe', 'pipe'] });
+const child = spawn('node', ['src/desktop-bridge.js'], { cwd: path.resolve(import.meta.dirname, '..'), env: { ...process.env, RAX_DATA_DIR: path.join(temp, 'data'), MODEL_API_KEY: 'local-test-key', MUSE_MODEL: 'local-test-model', MUSE_BASE_URL: `${origin}/v1` }, stdio: ['pipe', 'pipe', 'pipe'] });
 const messages = [];
 let stderr = '';
 child.stderr.on('data', chunk => { stderr += String(chunk).slice(0, 1000); });
@@ -50,7 +50,7 @@ async function waitFor(predicate, timeout = 30000) {
   throw new Error(`Timed out waiting for bridge: ${stderr.slice(0, 200)}`);
 }
 try {
-  const greeting = send('home_request', { message: 'Hi Kito' });
+  const greeting = send('home_request', { message: 'Hi Rax' });
   const first = await waitFor(item => item.kind === 'reply' && item.requestId === greeting);
   assert.equal(first.ok, true);
   assert.equal(first.data.action, 'respond');

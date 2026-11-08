@@ -24,7 +24,7 @@ async function connectToVisibleChrome(directory) {
     return chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000 });
   };
   try { return await connect(); } catch { /* Chrome is closed or still starting. */ }
-  const chrome = process.env.KITO_CHROME_PATH || '/usr/bin/google-chrome';
+  const chrome = process.env.RAX_CHROME_PATH || '/usr/bin/google-chrome';
   const child = spawn(chrome, [
     `--user-data-dir=${directory}`, '--remote-debugging-port=0', '--no-first-run',
     '--no-default-browser-check', '--start-maximized', 'about:blank',
@@ -36,7 +36,7 @@ async function connectToVisibleChrome(directory) {
     if (child.exitCode !== null) break;
     await new Promise(resolve => setTimeout(resolve, 250));
   }
-  throw new Error(`Could not connect to visible Chrome. Close an old Kito Chrome profile if it is locked, then retry. ${lastError?.message || ''}`);
+  throw new Error(`Could not connect to visible Chrome. Close an old Rax Chrome profile if it is locked, then retry. ${lastError?.message || ''}`);
 }
 
 export class BrowserController {
@@ -128,14 +128,14 @@ export class BrowserController {
     const data = await page.evaluate(() => {
       const isVisible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
       const label = el => el.getAttribute('aria-label') || el.labels?.[0]?.innerText || el.getAttribute('placeholder') || el.innerText || el.getAttribute('title') || '';
-      const controls = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="checkbox"],[contenteditable="true"]')].filter(isVisible).slice(0, 250).map((el, i) => { el.setAttribute('data-kito-index', String(i)); return { i, tag: el.tagName.toLowerCase(), type: el.getAttribute('type'), role: el.getAttribute('role'), text: String(label(el)).trim().slice(0, 140), name: el.getAttribute('name'), id: el.id, value: ['password', 'hidden'].includes(el.getAttribute('type')) ? '[hidden]' : String(el.value ?? '').slice(0, 120), href: el.tagName === 'A' ? el.href : undefined, required: el.required || undefined }; });
+      const controls = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="checkbox"],[contenteditable="true"]')].filter(isVisible).slice(0, 250).map((el, i) => { el.setAttribute('data-rax-index', String(i)); return { i, tag: el.tagName.toLowerCase(), type: el.getAttribute('type'), role: el.getAttribute('role'), text: String(label(el)).trim().slice(0, 140), name: el.getAttribute('name'), id: el.id, value: ['password', 'hidden'].includes(el.getAttribute('type')) ? '[hidden]' : String(el.value ?? '').slice(0, 120), href: el.tagName === 'A' ? el.href : undefined, required: el.required || undefined }; });
       return { title: document.title, text: document.body?.innerText?.slice(0, 14000) || '', controls };
     });
     return { url: page.url(), ...data };
   }
   async resolve(target) {
     const page = this.current();
-    if (Number.isInteger(target.index)) return page.locator(`[data-kito-index="${target.index}"]`).first();
+    if (Number.isInteger(target.index)) return page.locator(`[data-rax-index="${target.index}"]`).first();
     if (target.css) return page.locator(target.css).first();
     if (target.role && target.name) return page.getByRole(target.role, { name: target.name, exact: true }).first();
     if (target.label) return page.getByLabel(target.label, { exact: true }).first();
@@ -161,7 +161,7 @@ export class BrowserController {
     const fields = await page.evaluate(() => {
       const visible = el => { const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'; };
       return [...document.querySelectorAll('input,textarea,select,[contenteditable="true"]')].filter(visible).slice(0, 150).map(el => ({
-        index: el.hasAttribute('data-kito-index') ? Number(el.getAttribute('data-kito-index')) : null,
+        index: el.hasAttribute('data-rax-index') ? Number(el.getAttribute('data-rax-index')) : null,
         tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || el.tagName.toLowerCase(),
         label: (el.labels?.[0]?.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 180),
         name: el.getAttribute('name') || '', required: Boolean(el.required),
@@ -240,7 +240,7 @@ export class BrowserController {
     const page = this.current();
     const locator = await this.resolve(target);
     const kind = await locator.evaluate(el => ({ type: el.getAttribute('type'), text: (el.innerText || el.value || '').trim().slice(0, 100) }));
-    if (kind.type === 'submit' || /\b(submit|send application|apply now)\b/i.test(kind.text)) throw new Error('This control may submit the form; use browser_click so Kito captures the form state first');
+    if (kind.type === 'submit' || /\b(submit|send application|apply now)\b/i.test(kind.text)) throw new Error('This control may submit the form; use browser_click so Rax captures the form state first');
     const [download] = await this.awaitPage(() => Promise.all([
       page.waitForEvent('download', { timeout: 90000 }),
       locator.click({ timeout: 60000 }),

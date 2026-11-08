@@ -6,14 +6,14 @@ import { createApplication, ensureState, listApplications, loadApplication, path
 import { runAgent } from './agent.js';
 
 function help() {
-  console.log(`Kito — local application agent
+  console.log(`Rax — local application agent
 
 Usage:
-  kito start <url>       Start a job, grant, or other application
-  kito resume <id>       Resume an application
-  kito list              List application records
-  kito profile           Open your verified applicant knowledge in $EDITOR
-  kito config            Show configuration paths and status
+  rax start <url>       Start a job, grant, or other application
+  rax resume <id>       Resume an application
+  rax list              List application records
+  rax profile           Open your verified applicant knowledge in $EDITOR
+  rax config            Show configuration paths and status
 
 Set MODEL_API_KEY and MUSE_MODEL in .env first. Chrome opens visibly.`);
 }
@@ -45,7 +45,7 @@ async function main() {
     const url = new URL(argument);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Only HTTP(S) URLs are allowed');
     requireModelConfig();
-    const goal = await ask('What are you applying for, and what should Kito know?\n> ');
+    const goal = await ask('What are you applying for, and what should Rax know?\n> ');
     const record = await createApplication(url.toString(), goal || 'Complete this application accurately.');
     console.log(`Application ID: ${record.id}`);
     try { await runAgent(record, goal); }
@@ -53,7 +53,7 @@ async function main() {
     return;
   }
   if (command === 'resume') {
-    if (!argument) throw new Error('Provide an application ID from kito list');
+    if (!argument) throw new Error('Provide an application ID from rax list');
     requireModelConfig();
     const record = await loadApplication(argument);
     if (record.model && record.model !== config.model) throw new Error(`This application used ${record.model}. Set MUSE_MODEL to that model before resuming.`);
@@ -69,4 +69,4 @@ async function main() {
   throw new Error(`Unknown command: ${command}`);
 }
 
-main().catch(error => { console.error(`Kito error: ${error.message}`); process.exitCode = 1; }).finally(() => closeTerminal());
+main().catch(error => { console.error(`Rax error: ${error.message}`); process.exitCode = 1; }).finally(() => closeTerminal());

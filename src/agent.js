@@ -40,7 +40,7 @@ const tools = [
   tool('search_file_contents', 'Search text inside local files in a chosen directory using a literal, case-insensitive phrase. Returns at most 40 matching lines.', { directory: { type: 'string' }, query: { type: 'string' } }, ['directory', 'query']),
   tool('read_local_file', 'Read a local text or PDF file. Use only when relevant to the application.', { file: { type: 'string' } }, ['file']),
   tool('attach_local_file', 'Attach a known relevant local file path to this application record before browser_upload.', { file: { type: 'string' } }, ['file']),
-  tool('pick_file', 'Ask the user to choose a file in Kito when its path cannot be found or the choice is ambiguous.', { purpose: { type: 'string' } }, ['purpose']),
+  tool('pick_file', 'Ask the user to choose a file in Rax when its path cannot be found or the choice is ambiguous.', { purpose: { type: 'string' } }, ['purpose']),
   tool('curate_answer', 'Ask the fast answer curator to review a substantial draft against the field, applicant facts, selected files, and recent actions.', { draft: { type: 'string' }, question: { type: 'string' } }, ['draft', 'question']),
   tool('measure_answer', 'Count words and characters in a proposed answer and compare with optional limits.', { text: { type: 'string' }, maxWords: { type: 'integer' }, maxCharacters: { type: 'integer' } }, ['text']),
   tool('write_local_file', 'Create or overwrite an application-related local text file.', { file: { type: 'string' }, content: { type: 'string' } }, ['file', 'content']),
@@ -73,7 +73,7 @@ async function visionMessage(browser, emit, note = 'Current Chrome screenshot') 
 }
 
 function defaultEmit(event) {
-  if (event.type === 'message') console.log(`\nKito: ${event.text}\n`);
+  if (event.type === 'message') console.log(`\nRax: ${event.text}\n`);
   else if (event.type === 'tool') console.log(`→ ${event.name}`);
   else if (event.type === 'tool_error') console.error(`  ${event.text}`);
   else if (event.type === 'status' && event.text.startsWith('Stopped')) console.log(event.text);
@@ -201,7 +201,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
     emit({ type: 'issue', text: notice });
     await saveApplication(record);
   } finally {
-    // Chrome belongs to the user. A finished, stopped, or failed run only disconnects Kito.
+    // Chrome belongs to the user. A finished, stopped, or failed run only disconnects Rax.
     signal?.removeEventListener('abort', onAbort);
     if (keepBrowserOpen) await browser.detach().catch(() => {});
     else await browser.close().catch(() => {});
@@ -351,7 +351,7 @@ async function executeTool(name, args, browser, record, curator, signal) {
       record.chat ||= [];
       record.chat.push({ role: 'assistant', text: question, at: new Date().toISOString() });
       await saveApplication(record);
-      const answer = await ask(`\nKito asks: ${question}\n> `);
+      const answer = await ask(`\nRax asks: ${question}\n> `);
       record.chat.push({ role: 'user', text: answer, at: new Date().toISOString() });
       await saveApplication(record);
       return { answer };
