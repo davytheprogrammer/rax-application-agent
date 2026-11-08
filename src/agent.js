@@ -48,7 +48,7 @@ const tools = [
   tool('read_application', 'Read one prior application record to reuse accurate answers.', { id: { type: 'string' } }, ['id']),
   tool('save_profile_note', 'Append one source-verified applicant fact to persistent knowledge.', { note: { type: 'string' } }, ['note']),
   tool('save_application_note', 'Save a short decision, fact, question, or next step to this application record for later sessions.', { note: { type: 'string' } }, ['note']),
-  tool('ask_user', 'Ask for a missing fact, decision, or clarification in the desktop application chat.', { question: { type: 'string' } }, ['question']),
+  tool('ask_user', 'Ask only for a mandatory fact or user-only decision that cannot be resolved from saved knowledge, documents, prior applications, or the current page.', { question: { type: 'string' } }, ['question']),
   tool('handoff_to_user', 'Pause while the user handles login, CAPTCHA, passkey, payment, or an inaccessible browser control.', { message: { type: 'string' } }, ['message']),
   tool('record_confirmation', 'Record observed proof of submission. Only call after observing confirmation in Chrome.', { confirmation: { type: 'string' } }, ['confirmation']),
 ];
@@ -329,7 +329,7 @@ async function executeTool(name, args, browser, record, curator, signal) {
     case 'application_history': return (await listApplications()).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url, confirmation: item.confirmation }));
     case 'read_application': {
       const item = await loadApplication(args.id);
-      return { id: item.id, goal: item.goal, url: item.url, status: item.status, summary: item.summary, confirmation: item.confirmation, preSubmitSnapshot: item.preSubmitSnapshot };
+      return { id: item.id, goal: item.goal, url: item.url, status: item.status, summary: item.summary, confirmation: item.confirmation, userAnswers: (item.chat || []).filter(entry => entry.role === 'user').slice(-20).map(entry => entry.text), notes: (item.notes || []).slice(-20), sourceFiles: item.sourceFiles || [], preSubmitSnapshot: item.preSubmitSnapshot };
     }
     case 'save_profile_note': {
       const note = String(args.note || '').trim();

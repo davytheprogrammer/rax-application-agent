@@ -21,7 +21,7 @@ These are screenshots of the running Electron app with **synthetic demo data**. 
 - **Keeps context per application.** Chats, source files, notes, actions, form snapshots, screenshots, and outcome evidence are stored locally so a run can resume.
 - **Finds and attaches local files.** Kito can locate a known resume or supporting document itself. The desktop file browser handles ambiguous choices.
 - **Checks substantial answers.** A separate Muse curator reviews longer drafts against the question, saved knowledge, documents, and recent actions. Unsupported claims trigger a request for facts.
-- **Knows when it needs you.** Missing facts, sign-in, CAPTCHA, passkeys, and identity checks are handed to you in the desktop chat or visible browser. Routine work, including submission, proceeds without approval popups.
+- **Keeps manual work rare.** Kito checks documents, saved knowledge, prior answers, and recurring patterns before asking. It writes around unknown optional details and asks only for unresolved required facts or user-only steps such as sign-in, CAPTCHA, passkeys, and identity checks. Routine work, including submission, proceeds without approval popups.
 - **Reports progress and problems.** The workspace shows live activity and issues. Distinct sounds and background desktop notifications mark questions, completed runs, and failures; sounds can be muted in Agent settings.
 
 ```mermaid
