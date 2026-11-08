@@ -1,0 +1,46 @@
+{
+  "name": "kito-application-agent",
+  "version": "0.1.0",
+  "description": "An open-source desktop agent that researches, completes, and tracks job, grant, fellowship, scholarship, and other applications in visible Chrome.",
+  "keywords": [
+    "application-agent",
+    "agentic-ai",
+    "job-applications",
+    "grant-applications",
+    "scholarships",
+    "fellowships",
+    "desktop-agent",
+    "browser-automation",
+    "electron",
+    "playwright",
+    "muse"
+  ],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/davytheprogrammer/kito-application-agent.git" },
+  "homepage": "https://github.com/davytheprogrammer/kito-application-agent#readme",
+  "bugs": "https://github.com/davytheprogrammer/kito-application-agent/issues",
+  "private": true,
+  "type": "module",
+  "main": "desktop/electron/main.cjs",
+  "bin": {
+    "kito": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "desktop": "electron .",
+    "test:local": "node tests/local-integration.mjs && node tests/edge-cases.mjs && node tests/desktop-handoff.mjs && node tests/electron-ui.mjs && node tests/home-assistant.mjs && node tests/home-bridge.mjs && node tests/muse-retry.mjs && node tests/browser-lifecycle.mjs && node tests/stop-keeps-chrome.mjs && node tests/file-browser.mjs && node tests/electron-file-flow.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "mammoth": "^1.11.0",
+    "playwright": "^1.56.1",
+    "sharp": "^0.35.5",
+    "undici": "^7.30.2"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3"
+  }
+}
