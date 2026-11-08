@@ -1,6 +1,6 @@
 # Architecture
 
-Kito is an Electron desktop UI backed by a local Node process. The Node process talks to the Meta Muse API and controls a separate, visible Google Chrome profile through Playwright's CDP connection. There is no Kito HTTP server.
+Rax is an Electron desktop UI backed by a local Node process. The Node process talks to the Meta Muse API and controls a separate, visible Google Chrome profile through Playwright's CDP connection. There is no Rax HTTP server.
 
 ```mermaid
 flowchart TB
@@ -23,7 +23,7 @@ flowchart TB
 - `src/browser.js`: connects to a dedicated Chrome profile, inspects pages and forms, performs semantic and pixel browser actions, captures pre-submit form state, and preserves Chrome when the agent stops.
 - `src/curator.js`: reviews longer answers against saved knowledge, source documents, the question, and recent actions. It retries incomplete JSON and caches repeated reviews within a run.
 - `src/files.js` and `src/commands.js`: local file discovery, document extraction, file writing, and bounded shell commands.
-- `src/state.js`: application records and reusable knowledge under `KITO_DATA_DIR` or `~/.local/share/kito`.
+- `src/state.js`: application records and reusable knowledge under `RAX_DATA_DIR` or `~/.local/share/rax`.
 
 ## Application lifecycle
 
@@ -31,7 +31,7 @@ flowchart TB
 2. The bridge creates a record, then the agent opens or reconnects to visible Chrome.
 3. Muse receives a screenshot plus relevant local context. Its tool calls inspect and change the page. Browser-changing actions are followed by a fresh screenshot.
 4. The curator reviews substantial prose before it is entered. Files can be attached from a known path or selected in the desktop file browser when ambiguous.
-5. Kito can submit autonomously. It saves the visible form state before detected submit actions and requires observed confirmation evidence before marking the record submitted.
+5. Rax can submit autonomously. It saves the visible form state before detected submit actions and requires observed confirmation evidence before marking the record submitted.
 6. If the user stops, takes over Chrome, or the process exits, Chrome remains open. A later run reconnects and inspects the current page before repeating actions.
 
 Only one application run is active at a time. The desktop disables ordinary message sending while the agent acts; clarification replies are delivered to the waiting run. Login and verification are handed to the user in the same Chrome window.

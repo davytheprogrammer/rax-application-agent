@@ -1,6 +1,6 @@
 # Contributing
 
-Kito is open to focused fixes for browser reliability, application workflows, accessibility, security boundaries, and Linux desktop UX.
+Rax is open to focused fixes for browser reliability, application workflows, accessibility, security boundaries, and Linux desktop UX.
 
 1. Open an issue describing the user-visible failure or proposed behavior. Include a small reproducible example when possible.
 2. Keep changes scoped. New application-specific logic should still support jobs, grants, fellowships, scholarships, and other forms.
