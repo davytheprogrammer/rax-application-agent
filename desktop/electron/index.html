@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Kito</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="renderer.js" defer></script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2Zm7 14 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6c-2.6-1.7-5.7-2-9-1v14c3.3-1 6.4-.7 9 1 2.6-1.7 5.7-2 9-1V5c-3.3-1-6.4-.7-9 1Zm0 0v14"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M10 2h4l.6 2.3 1.8.8 2.1-1.2 2.8 2.8-1.2 2.1.8 1.8L23 11v4l-2.3.6-.8 1.8 1.2 2.1-2.8 2.8-2.1-1.2-1.8.8L14 24h-4l-.6-2.3-1.8-.8-2.1 1.2-2.8-2.8 1.2-2.1-.8-1.8L1 15v-4l2.3-.6.8-1.8-1.2-2.1 2.8-2.8 2.1 1.2 1.8-.8L10 2Zm2 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" transform="translate(0 -1) scale(1 .96)"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Z"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-3.7-8.3L3 10 22 2Zm-10.7 11.7L22 2"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 11h7l-1 9 10-12h-7l0-8Z"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="m4 20 4.5-1 11-11a2.5 2.5 0 0 0-3.5-3.5l-11 11L4 20Zm10-13 3.5 3.5"/></symbol>
+  </svg>
+  <div id="main-app" class="main-app">
+    <aside class="rail">
+      <div class="brand"><span class="brand-mark">K</span><div><strong>Kito</strong><small>My application agent</small></div><span class="brand-star">✦</span></div>
+      <nav class="nav" aria-label="Workspace">
+        <button class="nav-item active" data-tab="applications"><svg><use href="#i-grid"/></svg>Applications</button>
+        <button class="nav-item" data-tab="profile"><svg><use href="#i-book"/></svg>Knowledge</button>
+        <button class="nav-item" data-tab="settings"><svg><use href="#i-settings"/></svg>Agent settings</button>
+      </nav>
+      <div class="rail-section"><div class="rail-label">RECENT WORK</div><div id="rail-applications" class="rail-applications"></div><button id="new-app-btn" class="rail-new">＋ &nbsp;New application</button></div>
+      <div class="rail-bottom"><div class="status-visual"><img src="assets/kito-status-wave.png" alt="" aria-hidden="true"></div><div class="rail-bottom-heading">Agent status <span id="connection-status" class="online"><i class="dot"></i> Checking</span></div><strong id="rail-status">Connecting</strong><small>Listening · Planning · Creating</small></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar"><div><span class="eyebrow">LOCAL DESKTOP AGENT</span><h1 id="page-title">Applications</h1><p id="page-subtitle">Your personal agent for every application, from first draft to final submission.</p></div><div class="top-actions"><button id="documents-btn" class="button ghost"><svg><use href="#i-folder"/></svg>Documents folder</button><button id="companion-btn" class="button secondary"><svg><use href="#i-spark"/></svg>Floating helper</button></div></header>
+
+      <section id="applications-tab" class="tab-content active">
+        <div id="welcome-view" class="welcome-view">
+          <div class="welcome-copy"><span class="eyebrow">YOUR WORKSPACE</span><h2>What are we working on?</h2><p>Tell Kito the program, opportunity, or application. It can find the form, use your saved context, and finish it for you.</p><button id="setup-agent-btn" class="button secondary" hidden>Set up Muse →</button></div>
+          <div class="orb-area"><div class="orb-halo"></div><img class="orb-image" src="assets/kito-orb.png" alt="" aria-hidden="true"><div class="orb-shadow"></div></div>
+          <div class="welcome-center"><h3>Kito is ready to work with you.</h3><p>Describe the task in your own words, or paste a direct application link.</p></div>
+          <div id="home-chat-history" class="home-chat-history" aria-live="polite"></div>
+          <div class="quick-grid">
+            <button id="quick-start" class="quick-card"><span class="quick-icon"><svg><use href="#i-pencil"/></svg></span><strong>Start an<br>application</strong><svg class="quick-arrow"><use href="#i-arrow"/></svg></button>
+            <button id="quick-history" class="quick-card"><span class="quick-icon"><svg><use href="#i-layers"/></svg></span><strong>Track<br>applications</strong><svg class="quick-arrow"><use href="#i-arrow"/></svg></button>
+            <button id="quick-profile" class="quick-card"><span class="quick-icon"><svg><use href="#i-book"/></svg></span><strong>Build your<br>knowledge</strong><svg class="quick-arrow"><use href="#i-arrow"/></svg></button>
+            <button id="quick-docs" class="quick-card"><span class="quick-icon"><svg><use href="#i-folder"/></svg></span><strong>Open your<br>documents</strong><svg class="quick-arrow"><use href="#i-arrow"/></svg></button>
+          </div>
+          <form id="home-form" class="welcome-prompt"><svg><use href="#i-spark"/></svg><textarea id="home-input" rows="2" maxlength="5000" aria-label="Message Kito" placeholder="Tell Kito what you want to work on…"></textarea><button id="home-cancel" class="button text" type="button" hidden>Cancel</button><button id="home-send" class="send-button" type="submit" aria-label="Send request to Kito"><svg><use href="#i-send"/></svg></button></form>
+        </div>
+
+        <div id="work-view" class="work-view" hidden>
+          <div class="work-main">
+            <div class="work-heading"><div><span class="eyebrow">APPLICATION WORKSPACE</span><h2 id="work-title">Application</h2><p id="work-url">Select an application to continue.</p></div><button id="back-home-btn" class="button text">← Overview</button></div>
+            <div id="run-banner" class="run-banner" role="status" aria-live="polite"><span class="run-indicator"></span><div><strong id="run-banner-title">Ready</strong><span id="run-banner-detail">Send a message to continue this application.</span></div></div>
+            <div id="issue-banner" class="issue-banner" role="alert" hidden><span class="issue-mark">!</span><div><strong id="issue-title">Kito needs attention</strong><p id="issue-text"></p></div><button id="issue-dismiss" type="button" aria-label="Dismiss issue">×</button></div>
+            <div id="chat-history" class="chat-history"></div>
+            <div class="suggested-actions"><span><svg><use href="#i-spark"/></svg>Suggested actions</span><button id="suggest-answers" class="suggestion" type="button">Review answers</button><button id="suggest-attach" class="suggestion" type="button">Attach file</button><button id="suggest-control" class="suggestion" type="button">Take over Chrome</button></div>
+            <details id="activity-panel" class="activity-panel"><summary class="activity-title"><svg><use href="#i-bolt"/></svg><strong>Live activity</strong><span id="run-status" class="status-pill">Ready</span></summary><div id="activity" class="activity-feed"><div class="empty">Kito's actions will appear here.</div></div></details>
+            <div class="composer"><div class="composer-heading"><svg><use href="#i-spark"/></svg><span id="composer-title">Message Kito...</span></div><form id="chat-form" class="chat-form"><button id="composer-attach" type="button" class="composer-icon" title="Attach a file" aria-label="Attach a file"><svg><use href="#i-paperclip"/></svg></button><input id="chat-input" type="text" placeholder="Message Kito to continue…" maxlength="5000"><button id="send-btn" class="send-button" type="submit" title="Send message" aria-label="Send message"><svg><use href="#i-send"/></svg></button></form><div class="composer-footer"><span id="composer-hint">Applications are reviewed before submission.</span><button id="handoff-btn" class="button secondary" hidden>I finished in Chrome</button></div></div>
+          </div>
+          <aside class="work-side">
+            <div class="side-card"><div class="side-heading"><svg><use href="#i-layers"/></svg><h3>Progress</h3></div><div id="progress-list" class="progress-list"></div></div>
+            <div class="side-card"><div class="side-heading"><svg><use href="#i-book"/></svg><h3>Application at a glance</h3></div><p id="overview-summary" class="overview-summary">Select an application to see its saved context.</p><div class="overview-meta"><span id="overview-status">Ready</span><span id="overview-date"></span></div></div>
+            <div class="side-card files-card"><div class="side-heading"><svg><use href="#i-paperclip"/></svg><h3>Context & files <span id="file-count">(0)</span></h3><button id="attach-btn" class="mini-button">＋ Add</button></div><div id="file-list" class="file-list"><div class="empty">No files attached yet.</div></div></div>
+            <div class="side-card controls-card"><div class="side-heading"><svg><use href="#i-bolt"/></svg><h3>Run controls</h3></div><div class="run-actions"><button id="resume-btn" class="button secondary">Resume</button><button id="takeover-btn" class="button secondary">Take over Chrome</button><button id="handback-btn" class="button secondary">Hand back to Kito</button><button id="stop-btn" class="button danger">Stop agent</button></div><button id="answers-btn" class="button text">View saved answers →</button></div>
+            <details class="browser-preview side-card"><summary>Chrome preview <span id="run-url">Chrome is not running</span></summary><div class="screenshot-wrap"><img id="screenshot" alt="Kito's current Chrome view" hidden><div id="screenshot-empty" class="screenshot-empty">Chrome preview appears here during a run</div></div></details>
+          </aside>
+        </div>
+        <div id="history-view" class="history-view" hidden><div class="section-heading"><div><span class="eyebrow">YOUR WORK</span><h2>All applications</h2><p>Open a record to see its activity, files, and saved answers.</p></div><button id="refresh-btn" class="button secondary">Refresh</button></div><div id="application-list" class="application-list"><div class="empty">No applications yet.</div></div></div>
+      </section>
+
+      <section id="profile-tab" class="tab-content"><div class="editor-panel panel"><div class="section-heading"><div><span class="eyebrow">REUSABLE CONTEXT</span><h2>Your knowledge</h2><p>Verified experience, projects, and facts Kito can reuse. Keep passwords and API keys out of this file.</p></div><button id="save-profile-btn" class="button primary">Save knowledge</button></div><textarea id="profile-text" spellcheck="false"></textarea></div></section>
+      <section id="settings-tab" class="tab-content"><div class="settings-panel panel"><span class="eyebrow">LOCAL CONFIGURATION</span><h2>Agent settings</h2><p id="key-status">Checking API key…</p><label>Muse model ID<input id="model-input" type="text"></label><label>Curator model ID<input id="curator-model-input" type="text" placeholder="Uses main model when blank"></label><label>API key<input id="api-key-input" type="password" placeholder="Leave blank to keep saved key"></label><button id="save-settings-btn" class="button primary">Save settings</button><div class="sound-setting"><div><strong>Sound notifications</strong><small>Chimes for questions, completed runs, and problems.</small></div><div class="sound-actions"><button id="sound-toggle" class="button secondary" type="button" aria-pressed="true">On</button><button id="sound-preview" class="button ghost" type="button">Play sample</button></div></div><small id="data-dir"></small></div></section>
+    </main>
+  </div>
+
+        <div id="start-overlay" class="approval-overlay" hidden><div class="approval-card start-card"><div class="modal-top"><span class="eyebrow">NEW APPLICATION</span><button id="close-start-btn" class="icon-button" aria-label="Close">×</button></div><h2>Start an application</h2><p>Use the direct application link when you have it. Kito opens Chrome so you can watch and take over.</p><div class="new-form"><label>Application form URL<input id="start-url" type="url" placeholder="https://example.org/apply"></label><small class="form-hint">A homepage is fine only if your goal tells Kito which program to find.</small><label>What should Kito do?<input id="start-goal" type="text" value="Complete this application accurately."></label><button id="start-btn" class="button primary">Start application <svg><use href="#i-arrow"/></svg></button></div></div></div>
+        <div id="file-overlay" class="approval-overlay" role="dialog" aria-modal="true" aria-labelledby="file-title" hidden><div class="approval-card file-card"><div class="modal-top"><span class="eyebrow">LOCAL FILES</span><button id="file-close" class="icon-button" type="button" aria-label="Close file browser">×</button></div><h2 id="file-title">Choose a file</h2><p id="file-purpose">Browse a folder, then select a file.</p><div class="file-locations"><button id="file-kito" class="button secondary" type="button">Kito documents</button><button id="file-downloads" class="button secondary" type="button">Downloads</button><button id="file-home" class="button secondary" type="button">Home</button></div><div class="file-path-row"><button id="file-up" class="button secondary" type="button" aria-label="Parent folder">↑</button><input id="file-path" type="text" aria-label="Folder path" spellcheck="false"><button id="file-go" class="button secondary" type="button">Go</button></div><input id="file-search" type="search" placeholder="Filter files in this folder…" aria-label="Filter files"><div id="file-browser-list" class="file-browser-list" role="listbox" aria-label="Files"></div><p id="file-hint" class="file-browser-hint">Choose a file to continue.</p><div class="approval-actions"><button id="file-cancel" class="button secondary" type="button">Cancel</button><button id="file-select" class="button primary" type="button" disabled>Select file</button></div></div></div>
+
+  <div id="companion-app" class="companion-app" hidden><div class="companion-header"><div class="drag-region"><span class="brand-mark small">K</span><strong>Kito</strong><span id="companion-status" class="companion-status">Ready</span></div><button id="open-main-btn" class="icon-button" title="Open full Kito">↗</button><button id="close-companion-btn" class="icon-button" title="Open full Kito">×</button></div><div class="companion-body"><div class="companion-context"><strong id="companion-title">No application selected</strong><span id="companion-url">Start one in the full workspace.</span></div><div id="companion-chat" class="companion-chat"></div><form id="companion-chat-form" class="companion-chat-form"><input id="companion-input" type="text" placeholder="Reply when Kito asks, or message after stopping…" maxlength="5000"><button id="companion-send" class="button primary" type="submit">Send</button></form><div class="companion-controls"><button id="companion-takeover" class="button secondary">Take over</button><button id="companion-handback" class="button secondary">Hand back</button><button id="companion-done" class="button primary" hidden>Done in Chrome</button><button id="companion-stop" class="button text">Stop</button></div></div></div>
+  <div id="approval-overlay" class="approval-overlay" hidden><div class="approval-card"><div class="eyebrow">ACTION APPROVAL</div><h2 id="approval-title">Review Kito's action</h2><pre id="approval-text"></pre><div class="approval-actions"><button id="deny-btn" class="button secondary">Deny</button><button id="approve-btn" class="button primary">Approve</button></div></div></div>
+  <div id="answers-overlay" class="approval-overlay" hidden><div class="approval-card"><div class="eyebrow">APPLICATION RECORD</div><h2>Reviewed answers</h2><pre id="answers-text"></pre><div class="approval-actions"><button id="close-answers-btn" class="button primary">Close</button></div></div></div>
+  <div id="toast" class="toast" hidden></div>
+</body>
+</html>
