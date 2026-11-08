@@ -12,7 +12,7 @@ function delay(milliseconds, signal) {
 }
 
 export async function createResponse({ input, previousResponseId, instructions, tools, signal, onWait = () => {} }) {
-  const body = { model: config.model, instructions, input, tools, parallel_tool_calls: false, store: true };
+  const body = { model: config.model, instructions, input, tools, parallel_tool_calls: true, store: true };
   if (previousResponseId) body.previous_response_id = previousResponseId;
   let lastError;
   for (let attempt = 0; attempt < 4; attempt++) {

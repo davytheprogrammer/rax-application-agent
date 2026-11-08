@@ -32,6 +32,8 @@ export class AnswerCurator {
     this.profile = profile;
     this.emit = emit;
     this.cache = new Map();
+    this.sourceKey = '';
+    this.sourcePromise = null;
   }
 
   async review({ draft, field, pageText, signal }) {
@@ -43,13 +45,17 @@ export class AnswerCurator {
     const key = crypto.createHash('sha256').update(JSON.stringify([config.curatorModel || config.model, draft, fieldText, this.profile, this.record.sourceFiles, chatAnswers])).digest('hex');
     if (this.cache.has(key)) return { ...this.cache.get(key), cached: true };
     this.emit({ type: 'curation', stage: 'reviewing', text: fieldText || 'Long answer' });
-    const sources = [];
-    for (const file of (this.record.sourceFiles || []).slice(0, 3)) {
-      try {
-        const item = await readFile(file, 7000);
-        sources.push({ path: item.path, content: item.content });
-      } catch { sources.push({ path: file, content: '[not readable as text]' }); }
+    const sourceKey = JSON.stringify((this.record.sourceFiles || []).slice(0, 3));
+    if (this.sourceKey !== sourceKey || !this.sourcePromise) {
+      this.sourceKey = sourceKey;
+      this.sourcePromise = Promise.all((this.record.sourceFiles || []).slice(0, 3).map(async file => {
+        try {
+          const item = await readFile(file, 7000);
+          return { path: item.path, content: item.content };
+        } catch { return { path: file, content: '[not readable as text]' }; }
+      }));
     }
+    const sources = await this.sourcePromise;
     const actions = this.record.events.filter(event => event.type === 'tool').slice(-8).map(event => ({ name: event.detail?.name, target: event.detail?.args?.target, at: event.at }));
     const body = {
       model: config.curatorModel || config.model,

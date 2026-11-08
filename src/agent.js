@@ -41,7 +41,6 @@ const tools = [
   tool('read_local_file', 'Read a local text or PDF file. Use only when relevant to the application.', { file: { type: 'string' } }, ['file']),
   tool('attach_local_file', 'Attach a known relevant local file path to this application record before browser_upload.', { file: { type: 'string' } }, ['file']),
   tool('pick_file', 'Ask the user to choose a file in Rax when its path cannot be found or the choice is ambiguous.', { purpose: { type: 'string' } }, ['purpose']),
-  tool('curate_answer', 'Ask the fast answer curator to review a substantial draft against the field, applicant facts, selected files, and recent actions.', { draft: { type: 'string' }, question: { type: 'string' } }, ['draft', 'question']),
   tool('measure_answer', 'Count words and characters in a proposed answer and compare with optional limits.', { text: { type: 'string' }, maxWords: { type: 'integer' }, maxCharacters: { type: 'integer' } }, ['text']),
   tool('write_local_file', 'Create or overwrite an application-related local text file.', { file: { type: 'string' }, content: { type: 'string' } }, ['file', 'content']),
   tool('application_history', 'List prior application IDs, goals, statuses, and confirmations.'),
@@ -163,6 +162,8 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
           break;
         }
         let result;
+        let beforeUrl = record.currentUrl;
+        try { beforeUrl = browser.current().url(); } catch {}
         try {
           const args = JSON.parse(call.arguments || '{}');
           emit({ type: 'tool', name: call.name, detail: safeArgs(call.name, args) });
@@ -182,6 +183,12 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
         }
         nextInput.push({ type: 'function_call_output', call_id: call.call_id, output: truncate(result) });
         try { record.currentUrl = browser.current().url(); } catch {}
+        if (record.currentUrl !== beforeUrl && callIndex + 1 < calls.length) {
+          for (const skipped of calls.slice(callIndex + 1)) nextInput.push({ type: 'function_call_output', call_id: skipped.call_id, output: JSON.stringify({ skipped: true, reason: 'The page changed; inspect the new page before acting.' }) });
+          record.pendingOutputs = [...nextInput];
+          await saveApplication(record);
+          break;
+        }
         if (['browser_fill', 'browser_fill_fields', 'browser_select', 'browser_check', 'browser_upload', 'browser_click', 'mouse_click', 'keyboard_press', 'keyboard_type'].includes(call.name)) {
           try { record.draftSnapshot = await browser.reviewState(); } catch {}
         }
@@ -235,16 +242,25 @@ function summarizeResult(result) {
   return result;
 }
 
-async function fillField(browser, curator, target, value, signal) {
+async function prepareField(browser, curator, target, value, signal, pageText) {
   if (typeof value !== 'string') throw new Error('Field value must be text');
   const field = await browser.describeTarget(target);
   if (field.type === 'password') throw new Error('Passwords and login fields belong to the user. Use handoff_to_user.');
-  const pageText = value.trim().length >= 70 ? await browser.pageText() : '';
-  const review = await curator.review({ draft: value, field, pageText, signal });
+  const context = value.trim().length >= 70 ? pageText ?? await browser.pageText() : '';
+  const review = await curator.review({ draft: value, field, pageText: context, signal });
+  return { target, field, review };
+}
+
+async function applyField(browser, prepared) {
+  const { target, field, review } = prepared;
   if (review.decision === 'needs_fact') return { filled: false, needsFact: review.note };
   if (field.maxLength && review.text.length > field.maxLength) return { filled: false, issue: `Curated answer exceeds ${field.maxLength} characters` };
   await browser.fill(target, review.text);
   return { filled: true, curation: review.decision, note: review.note, characters: review.text.length };
+}
+
+async function fillField(browser, curator, target, value, signal) {
+  return applyField(browser, await prepareField(browser, curator, target, value, signal));
 }
 
 async function executeTool(name, args, browser, record, curator, signal) {
@@ -262,12 +278,25 @@ async function executeTool(name, args, browser, record, curator, signal) {
     case 'browser_fill_fields': {
       if (!Array.isArray(args.fields) || args.fields.length < 1 || args.fields.length > 20) throw new Error('Provide 1 to 20 fields');
       const startedUrl = browser.current().url();
+      const pageText = args.fields.some(item => String(item.value || '').trim().length >= 70) ? await browser.pageText() : '';
+      const prepared = [];
+      for (let index = 0; index < args.fields.length; index += 3) {
+        if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
+        const chunk = args.fields.slice(index, index + 3);
+        prepared.push(...await Promise.all(chunk.map(async item => {
+          try { return { value: await prepareField(browser, curator, item.target, item.value, signal, pageText) }; }
+          catch (error) { return { error }; }
+        })));
+      }
       const results = [];
       for (let index = 0; index < args.fields.length; index++) {
         if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
         if (browser.current().url() !== startedUrl) return { fieldsFilled: results.filter(item => item.filled).length, results, stoppedAt: index, issue: 'Page changed during batch; inspect the new page before continuing.' };
         const item = args.fields[index];
-        try { results.push({ index, target: item.target, ...await fillField(browser, curator, item.target, item.value, signal) }); }
+        try {
+          if (prepared[index].error) throw prepared[index].error;
+          results.push({ index, target: item.target, ...await applyField(browser, prepared[index].value) });
+        }
         catch (error) {
           if (signal?.aborted) throw error;
           return { fieldsFilled: results.filter(item => item.filled).length, results, stoppedAt: index, issue: error.message || String(error) };

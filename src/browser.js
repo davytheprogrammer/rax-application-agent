@@ -46,19 +46,9 @@ export class BrowserController {
     this.context = this.browser.contexts()[0];
     if (!this.context) throw new Error('Chrome did not expose its default browser context');
     this.context.setDefaultTimeout(30000);
-    await this.context.route('**/*', async route => {
-      const request = route.request();
-      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) { await route.continue(); return; }
-      let frameUrl = '';
-      try { frameUrl = request.frame().url(); } catch {}
-      if (/^(?:chrome|chrome-extension):/i.test(frameUrl) || /^https:\/\/docs\.google\.com\/offline\/extension\/report(?:[?#]|$)/i.test(request.url())) {
-        await route.abort('blockedbyclient').catch(() => {});
-        return;
-      }
-      // Application websites commonly submit to a separate API or storage origin.
-      // The user's application request authorizes those normal browser requests.
-      await route.continue();
-    });
+    // Leave normal page traffic in Chrome. Intercepting every resource here made
+    // large application forms wait on a Node round trip for each request.
+    await this.context.route(/^https:\/\/docs\.google\.com\/offline\/extension\/report(?:[?#]|$)/i, route => route.abort('blockedbyclient'));
     const existingPages = this.context.pages().filter(page => !page.isClosed());
     const newApplication = (this.record.runCount || 1) === 1 && !this.record.responseId && !(this.record.events || []).length && !(this.record.pendingCalls || []).length;
     this.page = newApplication && existingPages.some(page => page.url() !== 'about:blank')
