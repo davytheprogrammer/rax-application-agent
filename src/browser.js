@@ -265,12 +265,14 @@ export class BrowserController {
     return { file, url: this.current().url() };
   }
   async scrollPage(deltaY) {
-    if (!Number.isFinite(deltaY) || Math.abs(deltaY) > 5000) throw new Error('Scroll amount must be between -5000 and 5000 pixels');
+    if (!Number.isFinite(deltaY)) throw new Error('Scroll amount must be a number');
+    const requested = deltaY;
+    deltaY = Math.max(-5000, Math.min(5000, deltaY));
     const before = await this.current().evaluate(() => (document.scrollingElement || document.documentElement).scrollTop);
     await this.current().mouse.wheel(0, deltaY);
     await this.current().waitForTimeout(200);
     const after = await this.current().evaluate(() => { const root = document.scrollingElement || document.documentElement; return { top: root.scrollTop, height: root.scrollHeight, viewport: root.clientHeight }; });
-    return { requestedPixels: deltaY, before, after: after.top, atBottom: after.top + after.viewport >= after.height - 4, moved: after.top !== before, url: this.current().url() };
+    return { requestedPixels: requested, appliedPixels: deltaY, before, after: after.top, atBottom: after.top + after.viewport >= after.height - 4, moved: after.top !== before, url: this.current().url() };
   }
   async moveCursor(x, y) {
     const page = this.current();
