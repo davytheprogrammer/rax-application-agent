@@ -115,10 +115,12 @@ export class BrowserController {
   async snapshot() {
     const page = await this.syncFocusedPage();
     const data = await page.evaluate(() => {
-      const isVisible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+      const isVisible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth && s.visibility !== 'hidden' && s.display !== 'none'; };
       const label = el => el.getAttribute('aria-label') || el.labels?.[0]?.innerText || el.getAttribute('placeholder') || el.innerText || el.getAttribute('title') || '';
-      const controls = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="checkbox"],[contenteditable="true"]')].filter(isVisible).slice(0, 250).map((el, i) => { el.setAttribute('data-rax-index', String(i)); return { i, tag: el.tagName.toLowerCase(), type: el.getAttribute('type'), role: el.getAttribute('role'), text: String(label(el)).trim().slice(0, 140), name: el.getAttribute('name'), id: el.id, value: ['password', 'hidden'].includes(el.getAttribute('type')) ? '[hidden]' : String(el.value ?? '').slice(0, 120), href: el.tagName === 'A' ? el.href : undefined, required: el.required || undefined }; });
-      return { title: document.title, text: document.body?.innerText?.slice(0, 14000) || '', controls };
+      document.querySelectorAll('[data-rax-index]').forEach(el => el.removeAttribute('data-rax-index'));
+      const controls = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="checkbox"],[contenteditable="true"]')].filter(isVisible).slice(0, 250).map((el, i) => { el.setAttribute('data-rax-index', String(i)); const type = el.getAttribute('type'); const role = el.getAttribute('role'); return { i, tag: el.tagName.toLowerCase(), type, role, text: String(label(el)).trim().slice(0, 140), name: el.getAttribute('name'), id: el.id, value: ['password', 'hidden'].includes(type) ? '[hidden]' : String(el.value ?? '').slice(0, 120), checked: ['checkbox', 'radio'].includes(type) ? Boolean(el.checked) : ['checkbox', 'radio', 'switch'].includes(role) ? el.getAttribute('aria-checked') === 'true' : undefined, href: el.tagName === 'A' ? el.href : undefined, required: el.required || undefined }; });
+      const root = document.scrollingElement || document.documentElement;
+      return { title: document.title, text: document.body?.innerText?.slice(0, 14000) || '', controls, scroll: { top: root.scrollTop, height: root.scrollHeight, viewport: root.clientHeight, atBottom: root.scrollTop + root.clientHeight >= root.scrollHeight - 4 } };
     });
     return { url: page.url(), ...data };
   }
@@ -155,7 +157,7 @@ export class BrowserController {
         label: (el.labels?.[0]?.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 180),
         name: el.getAttribute('name') || '', required: Boolean(el.required),
         maxLength: el.maxLength > 0 ? el.maxLength : null,
-        value: el.type === 'password' ? '[hidden]' : String(el.value || '').slice(0, 160),
+        value: el.type === 'password' ? '[hidden]' : ['checkbox', 'radio'].includes(el.type) ? String(el.checked) : String(el.value || '').slice(0, 160),
         valid: el.validity?.valid ?? null, validationMessage: el.validationMessage?.slice(0, 150) || '',
         options: el.tagName === 'SELECT' ? [...el.options].slice(0, 40).map(option => ({ value: option.value, label: option.textContent.trim().slice(0, 100) })) : undefined,
       }));
@@ -252,9 +254,11 @@ export class BrowserController {
   }
   async scrollPage(deltaY) {
     if (!Number.isFinite(deltaY) || Math.abs(deltaY) > 5000) throw new Error('Scroll amount must be between -5000 and 5000 pixels');
+    const before = await this.current().evaluate(() => (document.scrollingElement || document.documentElement).scrollTop);
     await this.current().mouse.wheel(0, deltaY);
     await this.current().waitForTimeout(200);
-    return { scrolledPixels: deltaY, url: this.current().url() };
+    const after = await this.current().evaluate(() => { const root = document.scrollingElement || document.documentElement; return { top: root.scrollTop, height: root.scrollHeight, viewport: root.clientHeight }; });
+    return { requestedPixels: deltaY, before, after: after.top, atBottom: after.top + after.viewport >= after.height - 4, moved: after.top !== before, url: this.current().url() };
   }
   async moveCursor(x, y) {
     const page = this.current();
