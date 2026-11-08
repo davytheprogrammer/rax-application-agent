@@ -16,7 +16,10 @@
     "muse"
   ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/davytheprogrammer/rax-application-agent.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davytheprogrammer/rax-application-agent.git"
+  },
   "homepage": "https://github.com/davytheprogrammer/rax-application-agent#readme",
   "bugs": "https://github.com/davytheprogrammer/rax-application-agent/issues",
   "private": true,
@@ -37,7 +40,6 @@
     "dotenv": "^16.6.1",
     "mammoth": "^1.11.0",
     "playwright": "^1.56.1",
-    "sharp": "^0.35.5",
     "undici": "^7.30.2"
   },
   "devDependencies": {

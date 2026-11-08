@@ -41,6 +41,10 @@ export class AnswerCurator {
     if (typeof draft !== 'string' || draft.trim().length < 70) return { decision: 'use', text: draft, note: 'Short field; no curation needed.' };
     if (['password', 'email', 'tel', 'url', 'number', 'hidden', 'search'].includes(field.type)) return { decision: 'use', text: draft, note: 'Structured or sensitive field; not sent to curator.' };
     const fieldText = [field.label, field.question, field.name].filter(Boolean).join(' | ');
+    const highRiskField = /\b(eligib|qualif|experience|employment|education|degree|revenue|funding|financial|traction|metric|impact|award|achieve|year|salary|compensation|citizenship|visa)\w*/i.test(fieldText);
+    if (draft.length < 1200 && !numbers(draft).size && !(highRiskField && draft.length >= 180)) {
+      return { decision: 'use', text: draft, note: 'Routine answer; independent review not needed.' };
+    }
     const chatAnswers = (this.record.chat || []).filter(item => item.role === 'user').slice(-20).map(item => item.text);
     const key = crypto.createHash('sha256').update(JSON.stringify([config.curatorModel || config.model, draft, fieldText, this.profile, this.record.sourceFiles, chatAnswers])).digest('hex');
     if (this.cache.has(key)) return { ...this.cache.get(key), cached: true };

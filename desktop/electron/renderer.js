@@ -534,14 +534,14 @@ function onMessage(message) {
     return;
   }
   if (message.type === 'waiting' && message.purpose === 'file') { state.pendingPrompt = { id: message.id, purpose: 'file', question: message.text }; renderControls(); }
-  if (message.type === 'started') { state.activeId = message.id; state.selectedId = message.id; state.stopping = false; state.runDetail = 'Opening Chrome and inspecting the application.'; showView('work'); renderControls(); void refresh(); }
+  if (message.type === 'started') { state.activeId = message.id; state.selectedId = message.id; state.stopping = false; state.runDetail = 'Opening Chrome and inspecting the application.'; byId('screenshot').hidden = true; byId('screenshot').removeAttribute('src'); byId('screenshot-empty').hidden = false; showView('work'); renderControls(); void refresh(); }
   if (message.type === 'takeover') { state.pausedByUser = true; renderControls(); chatLine('assistant', message.text); }
   if (message.type === 'handback') { state.pausedByUser = false; renderControls(); chatLine('assistant', message.text); }
   if (message.type === 'stopping') { state.stopping = true; renderControls(); }
   if (message.type === 'record_updated') { state.activeId = null; state.pendingPrompt = null; state.pausedByUser = false; state.stopping = false; state.runDetail = ''; byId('handoff-btn').hidden = true; byId('companion-done').hidden = true; void refresh(); }
   if (message.type === 'url') { text(byId('run-url'), message.url); text(byId('companion-url'), message.url); }
   if (message.type === 'screenshot') {
-    void window.rax.readImage(message.path).then(url => { byId('screenshot').src = url; byId('screenshot').hidden = false; byId('screenshot-empty').hidden = true; }).catch(error => renderIssue({ id: message.id, type: 'preview', text: `Could not show Chrome preview: ${error.message || error}` }, true));
+    void window.rax.readImage(message.path).then(url => { byId('screenshot').src = url; byId('screenshot').hidden = false; byId('screenshot-empty').hidden = true; }).catch(error => renderIssue({ id: message.id, type: 'preview', text: `Could not show error capture: ${error.message || error}` }, true));
   }
   if (message.type === 'message') {
     appendActivity(`Rax: ${message.text}`, 'message');

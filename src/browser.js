@@ -5,7 +5,6 @@ import { paths, saveApplication } from './state.js';
 import { ask } from './io.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import sharp from 'sharp';
 import { spawn } from 'node:child_process';
 
 const execFileAsync = promisify(execFile);
@@ -251,25 +250,11 @@ export class BrowserController {
     await this.current().screenshot({ path: file, fullPage: true, timeout: 30000 });
     return { file, url: this.current().url() };
   }
-  async vision() {
-    const page = await this.syncFocusedPage();
-    let image;
-    try { image = await this.awaitPage(() => page.screenshot({ type: 'png', timeout: 45000 }), 'Chrome screenshot'); }
-    catch (error) {
-      if (error.name !== 'TimeoutError') throw error;
-      this.onWait('Chrome is still rendering. I will retry the screenshot in a few seconds.');
-      await page.waitForTimeout(5000);
-      image = await this.awaitPage(() => page.screenshot({ type: 'png', timeout: 45000 }), 'Chrome screenshot');
-    }
-    const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
-    const dir = path.join(paths().applicationsDir, this.record.id);
-    await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-    const latest = path.join(dir, 'latest.png');
-    const temporary = `${latest}.${process.pid}.tmp`;
-    await fs.writeFile(temporary, image, { mode: 0o600 });
-    await fs.rename(temporary, latest);
-    const modelImage = await sharp(image).jpeg({ quality: 70 }).toBuffer();
-    return { url: page.url(), viewport, latest, image_url: `data:image/jpeg;base64,${modelImage.toString('base64')}` };
+  async scrollPage(deltaY) {
+    if (!Number.isFinite(deltaY) || Math.abs(deltaY) > 5000) throw new Error('Scroll amount must be between -5000 and 5000 pixels');
+    await this.current().mouse.wheel(0, deltaY);
+    await this.current().waitForTimeout(200);
+    return { scrolledPixels: deltaY, url: this.current().url() };
   }
   async moveCursor(x, y) {
     const page = this.current();

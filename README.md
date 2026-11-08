@@ -18,9 +18,9 @@ These are screenshots of the running Electron app with **synthetic demo data**. 
 
 - **Works from a plain-language request.** Give Rax a direct link or name an opportunity. It can search for a form when needed.
 - **Uses visible Chrome.** Watch it browse, scroll, inspect fields, fill answers, upload documents, and submit. Chrome stays open when a run stops or Rax exits.
-- **Keeps context per application.** Chats, source files, notes, actions, form snapshots, screenshots, and outcome evidence are stored locally so a run can resume.
+- **Keeps context per application.** Chats, source files, notes, actions, form snapshots, and outcome evidence are stored locally so a run can resume. Screenshots are captured only after errors.
 - **Finds and attaches local files.** Rax can locate a known resume or supporting document itself. The desktop file browser handles ambiguous choices.
-- **Checks substantial answers.** A separate Muse curator reviews longer drafts against the question, saved knowledge, documents, and recent actions. Unsupported claims trigger a request for facts.
+- **Checks high-risk answers.** A separate Muse curator reviews numerical claims, very long prose, and substantive answers about qualifications, eligibility, funding, and similar facts. Routine answers skip this extra call.
 - **Keeps manual work rare.** Rax checks documents, saved knowledge, prior answers, and recurring patterns before asking. It writes around unknown optional details and asks only for unresolved required facts or user-only steps such as sign-in, CAPTCHA, passkeys, and identity checks. Routine work, including submission, proceeds without approval popups.
 - **Reports progress and problems.** The workspace shows live activity and issues. Distinct sounds and background desktop notifications mark questions, completed runs, and failures; sounds can be muted in Agent settings.
 
@@ -62,7 +62,7 @@ You can also ask Rax to find a named fellowship, scholarship, or grant. A direct
 ## How a run behaves
 
 1. Rax opens or reconnects to its dedicated, visible Chrome profile and inspects the site.
-2. It checks fields and source facts before drafting. Longer prose is reviewed by the curator.
+2. It checks fields and source facts before drafting. Only high-risk answers receive a separate curator review.
 3. It fills the form, attaches relevant files, and handles routine saves, uploads, and submission automatically.
 4. It pauses for missing facts or login/verification steps. While Rax is acting, sending a new message is disabled; stop the run first if you want to redirect it.
 5. It looks for a confirmation page, identifier, or other strong evidence. If the site hangs or resets without proof, Rax reports that uncertainty instead of marking the application submitted.
@@ -75,7 +75,7 @@ Rax writes specific, natural answers based on the applicant's facts. It does not
 
 Rax stores application records and its separate Chrome profile under `~/.local/share/rax` by default. Existing Kito data is reused if the new folder is absent; `RAX_DATA_DIR` takes precedence over the legacy `KITO_DATA_DIR`. Set `RAX_DATA_DIR` to choose another location. Reuse or link an existing `~/Documents/Kito` folder to `~/Documents/Rax` to keep older documents available. `.env`, local records, browser sessions, and personal documents are excluded from Git. The API key stays in local configuration and is not written to application records.
 
-Rax can read files available to your Linux account and can run application-related shell commands in the background. It sends relevant source text and browser screenshots to the configured Muse API. Websites and documents are untrusted task data; the agent is instructed to ignore commands or requests for unrelated data found inside them. Run it in an OS account whose files you are comfortable making available to the agent. Review the [security notes](docs/SECURITY.md) for the exact trust boundary.
+Rax can read files available to your Linux account and can run application-related shell commands in the background. It sends relevant source text and page controls to the configured Muse API. Screenshots are saved locally only after errors and are not sent as routine model input. Websites and documents are untrusted task data; the agent is instructed to ignore commands or requests for unrelated data found inside them. Run it in an OS account whose files you are comfortable making available to the agent. Review the [security notes](docs/SECURITY.md) for the exact trust boundary.
 
 Chrome may need human help for sign-in, CAPTCHA, passkeys, unusual widgets, or inaccessible controls. PDF and DOCX text can be read; other file types may be uploadable without being parsed. Some sites submit through JavaScript or external APIs and may fail to show a confirmation even when their backend records a row. Rax distinguishes an attempted submission, observed backend result, and confirmed on-page success.
 
