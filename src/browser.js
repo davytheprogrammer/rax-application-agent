@@ -134,7 +134,7 @@ export class BrowserController {
   async snapshot() {
     const page = await this.syncFocusedPage();
     const data = await page.evaluate(() => {
-      const isVisible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const inViewport = r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth; const submitControl = el.matches('button,input[type="submit"],input[type="button"]'); return r.width > 0 && r.height > 0 && (inViewport || submitControl) && s.visibility !== 'hidden' && s.display !== 'none'; };
+      const isVisible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const inViewport = r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth; const submitControl = el.matches('button,input[type="submit"],input[type="button"]'); return r.width > 0 && r.height > 0 && (inViewport || submitControl) && s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0' && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('tabindex') !== '-1' && !el.matches('input[type="hidden"]'); };
       const label = el => el.getAttribute('aria-label') || el.labels?.[0]?.innerText || el.getAttribute('placeholder') || el.innerText || el.getAttribute('title') || '';
       document.querySelectorAll('[data-rax-index]').forEach(el => el.removeAttribute('data-rax-index'));
       const controls = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="checkbox"],[contenteditable="true"]')].filter(isVisible).slice(0, 250).map((el, i) => { el.setAttribute('data-rax-index', String(i)); const type = el.getAttribute('type'); const role = el.getAttribute('role'); return { i, tag: el.tagName.toLowerCase(), type, role, text: String(label(el)).trim().slice(0, 140), name: el.getAttribute('name'), id: el.id, value: ['password', 'hidden'].includes(type) ? '[hidden]' : String(el.value ?? '').slice(0, 120), checked: ['checkbox', 'radio'].includes(type) ? Boolean(el.checked) : ['checkbox', 'radio', 'switch'].includes(role) ? el.getAttribute('aria-checked') === 'true' : undefined, href: el.tagName === 'A' ? el.href : undefined, required: el.required || undefined }; });
@@ -148,9 +148,17 @@ export class BrowserController {
     if (Number.isInteger(target.index)) return page.locator(`[data-rax-index="${target.index}"]`).first();
     if (target.css) return page.locator(target.css).first();
     if (target.role && target.name) return page.getByRole(target.role, { name: target.name, exact: true }).first();
-    if (target.label) return page.getByLabel(target.label, { exact: true }).first();
+    if (target.label) {
+      const combobox = page.getByRole('combobox', { name: target.label, exact: true }).first();
+      if (await combobox.count()) return combobox;
+      return page.getByLabel(target.label, { exact: true }).first();
+    }
     if (target.placeholder) return page.getByPlaceholder(target.placeholder, { exact: true }).first();
-    if (target.text) return page.getByText(target.text, { exact: true }).first();
+    if (target.text) {
+      const option = page.getByRole('option', { name: target.text, exact: true }).first();
+      if (await option.count()) return option;
+      return page.getByText(target.text, { exact: true }).first();
+    }
     throw new Error('Specify index from a recent snapshot, css, role + name, label, placeholder, or text');
   }
   async click(target) {
@@ -170,7 +178,7 @@ export class BrowserController {
     await this.snapshot();
     const page = this.current();
       const inventory = await page.evaluate(() => {
-      const visible = el => { const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'; };
+      const visible = el => { const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('tabindex') !== '-1' && !el.matches('input[type="hidden"]'); };
       const all = [...document.querySelectorAll('input,textarea,select,[contenteditable="true"]')].filter(visible).slice(0, 200).map(el => ({
         index: el.hasAttribute('data-rax-index') ? Number(el.getAttribute('data-rax-index')) : null,
         tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || el.tagName.toLowerCase(),
@@ -229,6 +237,14 @@ export class BrowserController {
   async pageText(limit = 5000) { return this.current().evaluate(max => document.body?.innerText?.slice(0, max) || '', limit); }
   async select(target, value) {
     const locator = await this.resolve(target);
+    const tag = await locator.evaluate(el => ({ tag: el.tagName.toLowerCase(), role: el.getAttribute('role') }));
+    if (tag.role === 'combobox' && tag.tag !== 'select') {
+      await this.awaitPage(() => locator.click({ timeout: 60000 }), 'Combobox');
+      const option = this.current().getByRole('option', { name: String(value), exact: true }).first();
+      if (!await option.count()) throw new Error(`No visible option named ${value}`);
+      await this.awaitPage(() => option.click({ timeout: 60000 }), 'Combobox option');
+      return { selected: value, changed: true, control: 'combobox' };
+    }
     const current = await locator.inputValue().catch(() => '');
     if (current === String(value)) return { selected: value, changed: false, alreadySelected: true };
     await this.awaitPage(() => locator.selectOption(String(value), { timeout: 60000 }), 'Dropdown');
@@ -248,7 +264,27 @@ export class BrowserController {
     if (!allowed.includes(absolute)) throw new Error('File is not attached to this application. Use pick_file or Add source file first.');
     const stat = await fs.stat(absolute);
     if (!stat.isFile()) throw new Error('Upload path is not a regular file');
-    await (await this.resolve(target)).setInputFiles(absolute);
+    const locator = await this.resolve(target);
+    const kind = await locator.evaluate(el => ({ tag: el.tagName.toLowerCase(), type: el.getAttribute('type') }));
+    if (kind.tag === 'input' && kind.type === 'file') await locator.setInputFiles(absolute);
+    else {
+      const page = this.current();
+      let chooser;
+      try {
+        [chooser] = await Promise.all([
+          page.waitForEvent('filechooser', { timeout: 5000 }),
+          locator.click({ timeout: 60000 }),
+        ]);
+      } catch (error) {
+        if (!/Timeout 5000ms exceeded|TimeoutError/i.test(error.message || '')) throw error;
+      }
+      if (chooser) await chooser.setFiles(absolute);
+      else {
+        const input = page.locator('input[type="file"]').last();
+        if (!await input.count()) throw new Error('Upload control opened no file input');
+        await input.setInputFiles(absolute);
+      }
+    }
     return { uploaded: absolute, bytes: stat.size };
   }
   async reviewState() {
