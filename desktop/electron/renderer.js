@@ -2,7 +2,7 @@ const companionMode = new URLSearchParams(location.search).get('mode') === 'comp
 document.body.classList.add(companionMode ? 'companion-mode' : 'main-mode');
 const byId = id => document.getElementById(id);
 if (companionMode) byId('companion-app').hidden = false;
-const state = { applications: [], selectedId: null, activeId: null, pausedByUser: false, stopping: false, pendingPrompt: null, runDetail: '', issue: null, profileDirty: false, current: null, view: 'welcome', backendOnline: false, configured: false, homeChat: [], homeBusy: false, homeCancelled: false, documentsDir: '', lastFileDirectory: '' };
+const state = { applications: [], selectedId: null, activeId: null, pausedByUser: false, stopping: false, pendingPrompt: null, runDetail: '', issue: null, profileDirty: false, current: null, view: 'welcome', backendOnline: false, configured: false, homeChat: [], homeBusy: false, homeCancelled: false, documentsDir: '', lastFileDirectory: '', agentLanes: {} };
 let toastTimer;
 let fileBrowser = null;
 let fileSearchTimer;
@@ -409,6 +409,35 @@ function renderFiles(record) {
     const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); const use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', '#i-check'); check.appendChild(use); row.append(kind, copy, check); list.appendChild(row);
   }
 }
+function renderAgentVisualization(record) {
+  const lanes = [
+    ['coordinator', 'Coordinator', 'Plans, sequences, and enforces safety', 'R'],
+    ['memory', 'Memory retrieval', 'Finds verified facts and reusable answers', 'M'],
+    ['research', 'Research lane', 'Reads only missing or requested context', '⌕'],
+    ['curator', 'Answer quality', 'Checks risky claims and limits', '✓'],
+    ['browser', 'Browser operator', 'Fills, selects, uploads, and observes Chrome', '↗'],
+  ];
+  const recent = (record.events || []).slice(-12);
+  const lastTool = [...recent].reverse().find(item => item.type === 'tool')?.detail?.name || '';
+  const running = state.activeId === record.id;
+  const status = byId('agent-visual-status');
+  text(status, running ? 'Live' : record.status === 'submitted' ? 'Complete' : 'Standby');
+  const container = byId('agent-lanes'); clear(container);
+  for (const [key, title, detail, icon] of lanes) {
+    let mode = running ? 'ready' : 'done';
+    let stateText = running ? 'Ready' : record.status === 'submitted' ? 'Done' : 'Saved';
+    if (key === 'coordinator' && running) { mode = 'working'; stateText = 'Orchestrating'; }
+    if (key === 'browser' && /browser_|computer_|keyboard_|handoff/.test(lastTool)) { mode = 'working'; stateText = 'Acting'; }
+    if (key === 'memory' && recent.some(item => /read_local_file|find_files|search_file_contents|memory/i.test(item.detail?.name || item.type))) { mode = 'working'; stateText = 'Retrieving'; }
+    if (key === 'research' && recent.some(item => /browser_download|find_files|search_file_contents|read_local_file/.test(item.detail?.name || ''))) { mode = 'working'; stateText = 'Focused'; }
+    if (key === 'curator' && recent.some(item => item.type === 'curation')) { mode = 'working'; stateText = 'Checking'; }
+    if (recent.some(item => ['tool_error', 'error', 'issue'].includes(item.type)) && key === 'coordinator') { mode = 'blocked'; stateText = 'Needs review'; }
+    const row = document.createElement('div'); row.className = `agent-lane ${mode}`;
+    const glyph = document.createElement('span'); glyph.className = 'agent-lane-icon'; glyph.textContent = icon;
+    const copy = document.createElement('div'); copy.className = 'agent-lane-copy'; const strong = document.createElement('strong'); strong.textContent = title; const small = document.createElement('small'); small.textContent = detail; copy.append(strong, small);
+    const laneState = document.createElement('span'); laneState.className = 'agent-lane-state'; laneState.textContent = stateText; row.append(glyph, copy, laneState); container.appendChild(row);
+  }
+}
 function renderApplication(record) {
   state.current = record;
   const events = record.events || [];
@@ -431,6 +460,7 @@ function renderApplication(record) {
   text(byId('overview-date'), String(record.updatedAt || '').slice(0, 10));
   renderProgress(record);
   renderFiles(record);
+  renderAgentVisualization(record);
   renderChat(record.chat || []);
   renderConversation(record);
   renderControls();
@@ -554,6 +584,7 @@ function onMessage(message) {
       state.current.events ||= [];
       state.current.events.push({ at: new Date().toISOString(), type: 'tool', detail: { name: message.name }, pending: true });
       renderTaskCard(state.current);
+      renderAgentVisualization(state.current);
     }
   }
   if (['tool_error', 'error', 'issue', 'backend_closed'].includes(message.type)) {
@@ -565,6 +596,7 @@ function onMessage(message) {
   if (message.type === 'curation') {
     appendActivity(`Curator · ${message.stage}: ${message.text || ''}`);
     if (message.stage === 'unavailable') { if (message.audible !== false) void playSound('error'); renderIssue({ id: message.id || state.activeId, type: 'curation', text: message.text || 'Answer review is unavailable.' }, true); }
+    if (state.current) renderAgentVisualization(state.current);
   }
   if (message.type === 'status') { state.runDetail = message.text; renderControls(); }
   if (message.type === 'complete') { if (message.audible !== false) void playSound(message.status === 'submitted' ? 'success' : 'attention'); appendActivity(`Run ended: ${message.status}`, 'message'); }
