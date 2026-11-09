@@ -8,6 +8,7 @@ import { journal, readProfile, saveApplication, listApplications, loadApplicatio
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import { AnswerCurator } from './curator.js';
+import { createKnowledgeIndex, searchKnowledge, formatKnowledge } from './retrieval.js';
 
 const target = { type: 'object', properties: { index: { type: 'integer' }, css: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' }, label: { type: 'string' }, placeholder: { type: 'string' }, text: { type: 'string' } } };
 const tool = (name, description, properties = {}, required = []) => ({ type: 'function', name, description, parameters: { type: 'object', properties, required, additionalProperties: false }, strict: false });
@@ -29,6 +30,7 @@ const tools = [
   tool('computer_wait', 'Wait for a page, animation, or upload to settle. Maximum 10 seconds.', { milliseconds: { type: 'number' } }, ['milliseconds']),
   tool('find_files', 'Find file names recursively in a directory, up to depth 4. Search by name only.', { directory: { type: 'string' }, query: { type: 'string' } }),
   tool('search_file_contents', 'Search text inside local files in a chosen directory using a literal, case-insensitive phrase. Returns at most 40 matching lines.', { directory: { type: 'string' }, query: { type: 'string' } }, ['directory', 'query']),
+  tool('retrieve_knowledge', 'Search the indexed profile, dossier, attached documents, and verified application knowledge for relevant facts before drafting a factual answer.', { query: { type: 'string' }, limit: { type: 'integer' } }, ['query']),
   tool('read_local_file', 'Read a local text or PDF file. Use only when relevant to the application.', { file: { type: 'string' } }, ['file']),
   tool('attach_local_file', 'Attach a known relevant local file path to this application record before browser_upload.', { file: { type: 'string' } }, ['file']),
   tool('pick_file', 'Ask the user to choose a file in Rax when its path cannot be found or the choice is ambiguous.', { purpose: { type: 'string' } }, ['purpose']),
@@ -112,6 +114,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       }
     }
     const profile = await readProfile();
+    const knowledge = await createKnowledgeIndex(profile, record.sourceFiles || []);
     const curator = new AnswerCurator(record, profile, emit);
     const history = (await listApplications()).filter(item => item.id !== record.id && item.projectKey && item.projectKey === record.projectKey).slice(0, 5).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url }));
     const pendingCalls = record.pendingCalls || [];
@@ -120,7 +123,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       ? pendingCalls.map(call => savedOutputs.find(item => item.call_id === call.call_id) || { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify({ error: 'The previous run stopped during this tool call. Its side effect is unknown. Inspect the browser or file before deciding what to do; do not blindly repeat a submit or write.' }) })
       : savedOutputs.length
         ? savedOutputs
-      : [{ role: 'user', content: `${record.dryRun ? 'DRY-RUN SPEED BENCHMARK: complete quickly, do not submit, do not upload, and stop before any submit control. Do not call application_history, read_application, find_files, search_file_contents, or curator tools unless a required verified fact is genuinely missing.\n' : ''}Application goal: ${record.goal}\nStarting URL: ${record.url}\nApplicant knowledge (user-maintained, may be incomplete):\n${profile.slice(0, 9000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-12)).slice(0, 6000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-10))}\nMatching application records only (same site/project):\n${JSON.stringify(history)}\nSaved answer plan: ${JSON.stringify((record.answerPlan || []).slice(-40))}\nCheckpoint: ${JSON.stringify(record.checkpoint || null)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
+      : [{ role: 'user', content: `${record.dryRun ? 'DRY-RUN SPEED BENCHMARK: complete quickly, do not submit, do not upload, and stop before any submit control. Do not call application_history or read_application unless a required verified fact is genuinely missing. Knowledge retrieval remains enabled.\n' : ''}Application goal: ${record.goal}\nStarting URL: ${record.url}\nRelevant indexed knowledge from the profile and dossier:\n${formatKnowledge(searchKnowledge(knowledge, `${record.goal} ${userMessage}`, 8), 12000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-12)).slice(0, 6000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-10))}\nMatching application records only (same site/project):\n${JSON.stringify(history)}\nSaved answer plan: ${JSON.stringify((record.answerPlan || []).slice(-40))}\nCheckpoint: ${JSON.stringify(record.checkpoint || null)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
     let nextInput = [...initialInput, await pageMessage(browser, (pendingCalls.length || savedOutputs.length) ? `Resumed run. Current user request: ${userMessage}` : 'Initial page observation')];
     let previousResponseId = record.responseId;
     for (let step = 0; step < config.maxSteps; step++) {
@@ -195,7 +198,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
         try {
           const args = JSON.parse(call.arguments || '{}');
           emit({ type: 'tool', name: call.name, detail: safeArgs(call.name, args) });
-          result = await executeTool(call.name, args, browser, record, curator, signal);
+          result = await executeTool(call.name, args, browser, record, curator, signal, knowledge);
           if (['browser_fill', 'browser_fill_fields', 'browser_select', 'browser_check'].includes(call.name)) {
             const inventory = await browser.formInventory().catch(() => null);
             if (inventory?.requiredRemaining === 0 && !record.dryRun) {
@@ -297,7 +300,7 @@ function summarizeResult(result) {
   return result;
 }
 
-async function prepareField(browser, curator, target, value, signal, pageText) {
+async function prepareField(browser, curator, target, value, signal, pageText, knowledge) {
   if (typeof value !== 'string') throw new Error('Field value must be text');
   const field = await browser.describeTarget(target);
   if (field.type === 'password') throw new Error('Passwords and login fields belong to the user. Use handoff_to_user.');
@@ -307,7 +310,8 @@ async function prepareField(browser, curator, target, value, signal, pageText) {
   const profileHash = crypto.createHash('sha256').update(curator.profile || '').digest('hex');
   const cached = await findCachedAnswer({ question, fieldType: field.type, maxLength: field.maxLength, profileHash, highRisk });
   if (cached) return { target, field, review: { decision: 'cached', text: cached.answer, note: `Reused ${cached.matchedBy} verified answer memory.` }, cached: true };
-  const context = value.trim().length >= 70 ? pageText ?? await browser.pageText() : '';
+  const retrieved = formatKnowledge(searchKnowledge(knowledge, `${question}\n${value}`, 5), 9000);
+  const context = `${retrieved}\n\n${value.trim().length >= 70 ? pageText ?? await browser.pageText() : ''}`.slice(0, 14000);
   const review = await curator.review({ draft: value, field, pageText: context, signal });
   if (review.decision !== 'needs_fact' && review.text?.trim()) await rememberAnswer({ question, answer: review.text, fieldType: field.type, maxLength: field.maxLength, profileHash, highRisk });
   return { target, field, review };
@@ -321,11 +325,11 @@ async function applyField(browser, prepared) {
   return { filled: true, curation: review.decision, note: review.note, characters: review.text.length };
 }
 
-async function fillField(browser, curator, target, value, signal) {
-  return applyField(browser, await prepareField(browser, curator, target, value, signal));
+async function fillField(browser, curator, target, value, signal, knowledge) {
+  return applyField(browser, await prepareField(browser, curator, target, value, signal, '', knowledge));
 }
 
-async function executeTool(name, args, browser, record, curator, signal) {
+async function executeTool(name, args, browser, record, curator, signal, knowledge) {
   switch (name) {
     case 'browser_snapshot': return browser.snapshot();
     case 'inspect_form': return browser.formInventory();
@@ -336,7 +340,7 @@ async function executeTool(name, args, browser, record, curator, signal) {
     case 'browser_click': return browser.click(args.target);
     case 'browser_hover': return browser.hover(args.target);
     case 'browser_download': return browser.download(args.target);
-    case 'browser_fill': return fillField(browser, curator, args.target, args.value, signal);
+    case 'browser_fill': return fillField(browser, curator, args.target, args.value, signal, knowledge);
     case 'browser_fill_fields': {
       if (!Array.isArray(args.fields) || args.fields.length < 1 || args.fields.length > 20) throw new Error('Provide 1 to 20 fields');
       const startedUrl = browser.current().url();
@@ -346,7 +350,7 @@ async function executeTool(name, args, browser, record, curator, signal) {
         if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
         const chunk = args.fields.slice(index, index + 3);
         prepared.push(...await Promise.all(chunk.map(async item => {
-          try { return { value: await prepareField(browser, curator, item.target, item.value, signal, pageText) }; }
+          try { return { value: await prepareField(browser, curator, item.target, item.value, signal, pageText, knowledge) }; }
           catch (error) { return { error }; }
         })));
       }
@@ -401,6 +405,11 @@ async function executeTool(name, args, browser, record, curator, signal) {
       record.toolCounts.searchContents = (record.toolCounts.searchContents || 0) + 1;
       if (record.toolCounts.searchContents > 8) return { root: args.directory, query: args.query, matches: [], issue: 'Content search budget reached for this run; use the documents already read.' };
       return searchFileContents(args.directory, args.query);
+    }
+    case 'retrieve_knowledge': {
+      const query = String(args.query || '').trim();
+      if (!query) throw new Error('Knowledge query cannot be empty');
+      return { query, results: searchKnowledge(knowledge, query, Math.max(1, Math.min(Number(args.limit) || 6, 12))).map(item => ({ source: item.source, score: item.score, content: item.content })) };
     }
     case 'read_local_file': {
       if (record.dryRun) return { path: args.file, skipped: true, reason: 'Dry-run benchmark does not perform extra document reads.' };

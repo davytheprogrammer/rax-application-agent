@@ -24,7 +24,7 @@ export async function ensureState() {
   }
 }
 
-export function paths() { return { applicationsDir, profilePath, homeChatPath, answerCachePath, browserDir, documentsDir }; }
+export function paths() { return { dataDir: config.dataDir, applicationsDir, profilePath, homeChatPath, answerCachePath, browserDir, documentsDir }; }
 export async function readProfile() { await ensureState(); return fs.readFile(profilePath, 'utf8'); }
 function normalizeQuestion(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
 function tokens(value) { return new Set(normalizeQuestion(value).split(' ').filter(token => token.length > 2)); }
