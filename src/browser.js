@@ -161,7 +161,7 @@ export class BrowserController {
         valid: el.validity?.valid ?? null, validationMessage: el.validationMessage?.slice(0, 150) || '',
         options: el.tagName === 'SELECT' ? [...el.options].slice(0, 40).map(option => ({ value: option.value, label: option.textContent.trim().slice(0, 100) })) : undefined,
       }));
-      const incomplete = all.filter(field => field.required && !field.valid || ['checkbox', 'radio'].includes(field.type) && field.value === 'false');
+      const incomplete = all.filter(field => field.required && !field.valid);
       return { fields: incomplete.slice(0, 80), totalFields: all.length, requiredRemaining: all.filter(field => field.required && !field.valid).length };
     });
     return { url: page.url(), ...inventory };
