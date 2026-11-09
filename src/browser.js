@@ -165,7 +165,7 @@ export class BrowserController {
     // Form-only numbering would point at missing or unrelated controls.
     await this.snapshot();
     const page = this.current();
-    const inventory = await page.evaluate(() => {
+      const inventory = await page.evaluate(() => {
       const visible = el => { const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'; };
       const all = [...document.querySelectorAll('input,textarea,select,[contenteditable="true"]')].filter(visible).slice(0, 200).map(el => ({
         index: el.hasAttribute('data-rax-index') ? Number(el.getAttribute('data-rax-index')) : null,
@@ -178,7 +178,16 @@ export class BrowserController {
         options: el.tagName === 'SELECT' ? [...el.options].slice(0, 40).map(option => ({ value: option.value, label: option.textContent.trim().slice(0, 100) })) : undefined,
       }));
       const incomplete = all.filter(field => field.required && !field.valid);
-      return { fields: incomplete.slice(0, 80), totalFields: all.length, requiredRemaining: all.filter(field => field.required && !field.valid).length };
+      const customErrors = [...document.querySelectorAll('.invalid-feedback.gc-error.d-block')]
+        .map(el => el.innerText.trim()).filter(Boolean);
+      const bodyText = document.body?.innerText || '';
+      return {
+        fields: incomplete.slice(0, 80),
+        totalFields: all.length,
+        customErrors: customErrors.slice(0, 40),
+        submitted: /Application received|application has been saved/i.test(bodyText),
+        requiredRemaining: all.filter(field => field.required && !field.valid).length + customErrors.length,
+      };
     });
     return { url: page.url(), ...inventory };
   }

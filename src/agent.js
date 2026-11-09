@@ -85,6 +85,15 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
     await browser.open();
     if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
     const initialInventory = await browser.formInventory().catch(() => null);
+    if (initialInventory?.submitted) {
+      record.confirmation = { text: 'Application received', url: browser.current().url(), at: new Date().toISOString() };
+      record.status = 'submitted';
+      record.summary = 'Application submitted; confirmation observed in Chrome.';
+      journal(record, 'confirmation', record.confirmation);
+      await saveApplication(record);
+      emit({ type: 'status', text: 'Application received. Submission confirmed.' });
+      return;
+    }
     if (initialInventory?.requiredRemaining === 0) {
       const initialSnapshot = await browser.snapshot().catch(() => null);
       const submit = initialSnapshot?.controls?.find(control => /\b(submit application|submit|apply now|send application)\b/i.test(control.text || ''));
