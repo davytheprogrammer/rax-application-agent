@@ -92,6 +92,10 @@ async function handle(command) {
     if (action === 'state') {
       await ensureState();
       data = { applications: summaries(await listApplications()), homeChat: await readHomeChat(), profile: await readProfile(), model: config.model, curatorModel: config.curatorModel, keySet: Boolean(config.apiKey), dataDir: config.dataDir, documentsDir: paths().documentsDir, activeId: active?.id || null, pausedByUser: active?.paused || false, stopping: Boolean(active?.controller.signal.aborted), pendingPrompt: pendingQuestion && { id: pendingQuestion.id, purpose: pendingQuestion.purpose, question: pendingQuestion.question } };
+    } else if (action === 'new_chat') {
+      if (active) throw new Error('Stop the running application before starting a new chat.');
+      await saveHomeChat([]);
+      data = { homeChat: [] };
     } else if (action === 'home_request') {
       if (active) throw new Error('An application is running. Use its conversation to guide Rax.');
       if (homeBusy) throw new Error('Rax is still answering your previous request.');

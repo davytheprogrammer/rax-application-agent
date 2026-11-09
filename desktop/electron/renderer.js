@@ -290,9 +290,12 @@ function showView(view) {
   state.view = view;
   for (const name of ['welcome', 'work', 'history']) byId(`${name}-view`).hidden = name !== view;
 }
-function openStart() {
+async function openStart() {
   if (state.activeId) { toast('Finish or stop the running application before starting another.'); return; }
   if (!state.configured) { showTab('settings'); toast('Set the Muse model and API key first.'); return; }
+  await call('new_chat');
+  state.homeChat = [];
+  renderHomeChat([]);
   byId('start-overlay').hidden = true;
   showTab('applications');
   showView('welcome');
