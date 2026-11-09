@@ -83,7 +83,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
   const onAbort = () => { void browser.detach().catch(() => {}); };
   signal?.addEventListener('abort', onAbort, { once: true });
   try {
-    record.dryRun = /dry[- ]run|benchmark|speed test|do not submit|without submitting/i.test(userMessage);
+    record.dryRun = /dry[- ]run|benchmark|speed test|do not submit|without submitting/i.test(`${record.goal || ''}\n${userMessage}`);
     if (record.dryRun) record.summary = 'Dry-run benchmark: no submission or external upload permitted.';
     if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
     await browser.open();
