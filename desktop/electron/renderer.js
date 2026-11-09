@@ -3,6 +3,8 @@ document.body.classList.add(companionMode ? 'companion-mode' : 'main-mode');
 const byId = id => document.getElementById(id);
 if (companionMode) byId('companion-app').hidden = false;
 const state = { applications: [], selectedId: null, activeId: null, pausedByUser: false, stopping: false, pendingPrompt: null, runDetail: '', issue: null, profileDirty: false, current: null, view: 'welcome', backendOnline: false, configured: false, homeChat: [], homeBusy: false, homeCancelled: false, documentsDir: '', lastFileDirectory: '', agentLanes: {} };
+let splashReady = false;
+let splashMinimumElapsed = false;
 let toastTimer;
 let fileBrowser = null;
 let fileSearchTimer;
@@ -10,6 +12,12 @@ const dismissedIssues = new Set();
 const announcedIssues = new Set();
 const soundTimes = new Map();
 let audioContext;
+
+function dismissSplash() {
+  if (!splashReady || !splashMinimumElapsed) return;
+  byId('rax-splash').hidden = true;
+}
+setTimeout(() => { splashMinimumElapsed = true; dismissSplash(); }, 7000);
 
 function soundsEnabled() {
   try { return (localStorage.getItem('rax:sounds') ?? localStorage.getItem('kito:sounds')) !== 'off'; }
@@ -517,7 +525,8 @@ async function refresh() {
     try { renderApplication(await call('application', { id: state.selectedId })); }
     catch { /* command already showed the error */ }
   }
-  byId('rax-splash').hidden = true;
+  splashReady = true;
+  dismissSplash();
 }
 function showTab(tab) {
   for (const button of document.querySelectorAll('.nav-item')) button.classList.toggle('active', button.dataset.tab === tab);
@@ -773,5 +782,4 @@ byId('chat-form').addEventListener('submit', event => { event.preventDefault(); 
 byId('companion-chat-form').addEventListener('submit', event => { event.preventDefault(); void sendChat(byId('companion-input').value); });
 window.rax.onMessage(onMessage);
 renderSoundControl();
-setTimeout(() => { byId('rax-splash').hidden = true; }, 8000);
 void refresh().catch(() => {});
