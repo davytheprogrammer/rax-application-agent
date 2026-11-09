@@ -114,7 +114,7 @@ function startBridge() {
 
 function makeWindow({ width, height, minWidth, minHeight, frame = true, alwaysOnTop = false }) {
   const window = new BrowserWindow({
-    width, height, minWidth, minHeight, frame, alwaysOnTop, backgroundColor: '#0b0817',
+    width, height, minWidth, minHeight, frame, alwaysOnTop, icon: path.join(__dirname, 'assets/rax-icon.png'), backgroundColor: '#0b0817',
     autoHideMenuBar: true, show: false,
     webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
   });

@@ -517,6 +517,7 @@ async function refresh() {
     try { renderApplication(await call('application', { id: state.selectedId })); }
     catch { /* command already showed the error */ }
   }
+  byId('rax-splash').hidden = true;
 }
 function showTab(tab) {
   for (const button of document.querySelectorAll('.nav-item')) button.classList.toggle('active', button.dataset.tab === tab);
@@ -772,4 +773,5 @@ byId('chat-form').addEventListener('submit', event => { event.preventDefault(); 
 byId('companion-chat-form').addEventListener('submit', event => { event.preventDefault(); void sendChat(byId('companion-input').value); });
 window.rax.onMessage(onMessage);
 renderSoundControl();
+setTimeout(() => { byId('rax-splash').hidden = true; }, 8000);
 void refresh().catch(() => {});

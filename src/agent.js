@@ -118,8 +118,10 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
     const savedOutputs = record.pendingOutputs || [];
     const initialInput = pendingCalls.length
       ? pendingCalls.map(call => savedOutputs.find(item => item.call_id === call.call_id) || { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify({ error: 'The previous run stopped during this tool call. Its side effect is unknown. Inspect the browser or file before deciding what to do; do not blindly repeat a submit or write.' }) })
+      : savedOutputs.length
+        ? savedOutputs
       : [{ role: 'user', content: `${record.dryRun ? 'DRY-RUN SPEED BENCHMARK: complete quickly, do not submit, do not upload, and stop before any submit control. Do not call application_history, read_application, find_files, search_file_contents, or curator tools unless a required verified fact is genuinely missing.\n' : ''}Application goal: ${record.goal}\nStarting URL: ${record.url}\nApplicant knowledge (user-maintained, may be incomplete):\n${profile.slice(0, 9000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-12)).slice(0, 6000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-10))}\nMatching application records only (same site/project):\n${JSON.stringify(history)}\nSaved answer plan: ${JSON.stringify((record.answerPlan || []).slice(-40))}\nCheckpoint: ${JSON.stringify(record.checkpoint || null)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
-    let nextInput = [...initialInput, await pageMessage(browser, pendingCalls.length ? `Resumed run. Current user request: ${userMessage}` : 'Initial page observation')];
+    let nextInput = [...initialInput, await pageMessage(browser, (pendingCalls.length || savedOutputs.length) ? `Resumed run. Current user request: ${userMessage}` : 'Initial page observation')];
     let previousResponseId = record.responseId;
     for (let step = 0; step < config.maxSteps; step++) {
       if (signal?.aborted) throw new Error('Stopped by user');
@@ -131,7 +133,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       const modelStarted = Date.now();
       try { response = await createResponse({ input: nextInput, previousResponseId, instructions, tools, signal, onWait: text => emit({ type: 'status', text }) }); }
       catch (error) {
-        const lostContext = previousResponseId && [400, 404].includes(error.status) && /previous_response_id|response.*(not found|expired|unknown|invalid)/i.test(error.message);
+        const lostContext = previousResponseId && ([400, 404].includes(error.status) && /previous_response_id|response.*(not found|expired|unknown|invalid)/i.test(error.message) || /No tool output found for function call/i.test(error.message));
         if (!lostContext) throw error;
         emit({ type: 'status', text: 'Muse context expired; rebuilding from local application state.' });
         journal(record, 'recovery', 'Muse server context unavailable; rebuilt from local state');

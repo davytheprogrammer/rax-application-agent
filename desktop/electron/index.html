@@ -6,9 +6,14 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>Rax</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="splash.css">
   <script src="renderer.js" defer></script>
 </head>
 <body>
+  <div id="rax-splash" class="rax-splash" aria-label="Rax is starting">
+    <img src="assets/rax-splash.png" alt="">
+    <div class="rax-splash-content"><img src="assets/rax-icon.png" alt=""><strong>Rax</strong><span>Application agent</span><i></i></div>
+  </div>
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2Zm7 14 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></symbol>
@@ -25,7 +30,7 @@
   </svg>
   <div id="main-app" class="main-app">
     <aside class="rail">
-      <div class="brand"><span class="brand-mark">R</span><div><strong>Rax</strong><small>Application agent</small></div><span class="brand-star">✦</span></div>
+      <div class="brand"><img class="brand-image" src="assets/rax-icon.png" alt=""><div><strong>Rax</strong><small>Application agent</small></div><span class="brand-star">✦</span></div>
       <nav class="nav" aria-label="Workspace">
         <button class="nav-item active" data-tab="applications"><svg><use href="#i-grid"/></svg>Applications</button>
         <button class="nav-item" data-tab="profile"><svg><use href="#i-book"/></svg>Knowledge</button>

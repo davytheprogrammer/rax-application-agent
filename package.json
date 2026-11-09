@@ -2,6 +2,10 @@
   "name": "rax-application-agent",
   "version": "0.1.0",
   "description": "An open-source desktop agent that researches, completes, and tracks job, grant, fellowship, scholarship, and other applications in visible Chrome.",
+  "author": {
+    "name": "Davy the Programmer",
+    "email": "106677927+davytheprogrammer@users.noreply.github.com"
+  },
   "keywords": [
     "application-agent",
     "agentic-ai",
@@ -31,6 +35,10 @@
   "scripts": {
     "start": "node src/cli.js",
     "desktop": "electron .",
+    "dist:linux": "electron-builder --linux AppImage deb",
+    "dist:windows": "electron-builder --win nsis portable",
+    "dist": "electron-builder --linux AppImage deb --win nsis portable",
+    "release:github": "node scripts/publish-release.mjs",
     "test:local": "node tests/local-integration.mjs && node tests/edge-cases.mjs && node tests/desktop-handoff.mjs && node tests/electron-ui.mjs && node tests/home-assistant.mjs && node tests/home-bridge.mjs && node tests/muse-retry.mjs && node tests/browser-lifecycle.mjs && node tests/stop-keeps-chrome.mjs && node tests/file-browser.mjs && node tests/electron-file-flow.mjs"
   },
   "engines": {
@@ -43,6 +51,45 @@
     "undici": "^7.30.2"
   },
   "devDependencies": {
-    "electron": "^45.2.3"
+    "electron": "^45.2.3",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "ai.raxcore.application-agent",
+    "productName": "Rax",
+    "artifactName": "Rax-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "files": [
+      "desktop/**/*",
+      "src/**/*",
+      "scripts/**/*",
+      "package.json",
+      "package-lock.json",
+      ".env.example",
+      "README.md",
+      "LICENSE"
+    ],
+    "extraMetadata": { "name": "rax-application-agent" },
+    "linux": {
+      "category": "Utility",
+      "target": ["AppImage", "deb"],
+      "icon": "build/icons/rax.png",
+      "executableName": "rax"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icons/rax.ico",
+      "executableName": "Rax",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Rax"
+    },
+    "publish": null
   }
 }
