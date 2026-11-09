@@ -162,6 +162,18 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
           const args = JSON.parse(call.arguments || '{}');
           emit({ type: 'tool', name: call.name, detail: safeArgs(call.name, args) });
           result = await executeTool(call.name, args, browser, record, curator, signal);
+          if (['browser_fill', 'browser_fill_fields', 'browser_select', 'browser_check'].includes(call.name)) {
+            const inventory = await browser.formInventory().catch(() => null);
+            if (inventory?.requiredRemaining === 0) {
+              const snapshot = await browser.snapshot().catch(() => null);
+              const submit = snapshot?.controls?.find(control => /\b(submit application|submit|apply now|send application)\b/i.test(control.text || ''));
+              if (submit) {
+                emit({ type: 'status', text: 'Required fields are complete. Submitting the application now.' });
+                const submitted = await browser.click({ index: submit.i });
+                result = { ...result, autoSubmitted: true, submit: submitted };
+              }
+            }
+          }
           journal(record, 'tool', { name: call.name, args: safeArgs(call.name, args), result: summarizeResult(result) });
           const needsFact = Array.isArray(result?.needsFact) ? result.needsFact.map(item => item.reason || item.needsFact || '').filter(Boolean).join('; ') : result?.needsFact;
           const issue = String(result?.issue || result?.error || needsFact || '').trim();
