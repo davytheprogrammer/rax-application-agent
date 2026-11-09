@@ -91,6 +91,11 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       if (submit) {
         emit({ type: 'status', text: 'Saved form is complete. Submitting it now.' });
         await browser.click({ index: submit.i });
+      } else {
+        try {
+          emit({ type: 'status', text: 'Saved form is complete. Submitting it now.' });
+          await browser.click({ role: 'button', name: 'Submit application' });
+        } catch { /* Let Muse inspect an unusual submit control. */ }
       }
     }
     const profile = await readProfile();
@@ -180,6 +185,12 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
                 emit({ type: 'status', text: 'Required fields are complete. Submitting the application now.' });
                 const submitted = await browser.click({ index: submit.i });
                 result = { ...result, autoSubmitted: true, submit: submitted };
+              } else {
+                try {
+                  emit({ type: 'status', text: 'Required fields are complete. Submitting the application now.' });
+                  const submitted = await browser.click({ role: 'button', name: 'Submit application' });
+                  result = { ...result, autoSubmitted: true, submit: submitted };
+                } catch { /* Let Muse inspect an unusual submit control. */ }
               }
             }
           }
