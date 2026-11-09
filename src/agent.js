@@ -84,6 +84,15 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
     if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
     await browser.open();
     if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
+    const initialInventory = await browser.formInventory().catch(() => null);
+    if (initialInventory?.requiredRemaining === 0) {
+      const initialSnapshot = await browser.snapshot().catch(() => null);
+      const submit = initialSnapshot?.controls?.find(control => /\b(submit application|submit|apply now|send application)\b/i.test(control.text || ''));
+      if (submit) {
+        emit({ type: 'status', text: 'Saved form is complete. Submitting it now.' });
+        await browser.click({ index: submit.i });
+      }
+    }
     const profile = await readProfile();
     const curator = new AnswerCurator(record, profile, emit);
     const history = (await listApplications()).filter(item => item.id !== record.id).slice(0, 15).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url }));
