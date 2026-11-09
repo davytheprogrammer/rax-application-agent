@@ -361,18 +361,23 @@ async function executeTool(name, args, browser, record, curator, signal) {
       return browser.typeText(review.text);
     }
     case 'find_files': {
+      if (record.dryRun) return { matches: [], skipped: true, reason: 'Dry-run benchmark uses the already-loaded verified context.' };
       record.toolCounts ||= {};
       record.toolCounts.findFiles = (record.toolCounts.findFiles || 0) + 1;
       if (record.toolCounts.findFiles > 6) return { matches: [], issue: 'File search budget reached for this run; use the documents already read.' };
       return listFiles(args.directory, args.query);
     }
     case 'search_file_contents': {
+      if (record.dryRun) return { root: args.directory, query: args.query, matches: [], skipped: true, reason: 'Dry-run benchmark uses the already-loaded verified context.' };
       record.toolCounts ||= {};
       record.toolCounts.searchContents = (record.toolCounts.searchContents || 0) + 1;
       if (record.toolCounts.searchContents > 8) return { root: args.directory, query: args.query, matches: [], issue: 'Content search budget reached for this run; use the documents already read.' };
       return searchFileContents(args.directory, args.query);
     }
-    case 'read_local_file': return readFile(args.file);
+    case 'read_local_file': {
+      if (record.dryRun) return { path: args.file, skipped: true, reason: 'Dry-run benchmark does not perform extra document reads.' };
+      return readFile(args.file);
+    }
     case 'pick_file': {
       const chosen = await pickFile(args.purpose);
       if (!chosen) return { cancelled: true };
@@ -402,7 +407,10 @@ async function executeTool(name, args, browser, record, curator, signal) {
       await saveApplication(record);
       return { ...result, attachedToApplication: true };
     }
-    case 'application_history': return (await listApplications()).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url, confirmation: item.confirmation }));
+    case 'application_history': {
+      if (record.dryRun) return { skipped: true, reason: 'Dry-run benchmark does not inspect unrelated applications.' };
+      return (await listApplications()).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url, confirmation: item.confirmation }));
+    }
     case 'read_application': {
       const item = await loadApplication(args.id);
       return { id: item.id, goal: item.goal, url: item.url, status: item.status, summary: item.summary, confirmation: item.confirmation, userAnswers: (item.chat || []).filter(entry => entry.role === 'user').slice(-20).map(entry => entry.text), notes: (item.notes || []).slice(-20), sourceFiles: item.sourceFiles || [], preSubmitSnapshot: item.preSubmitSnapshot };
