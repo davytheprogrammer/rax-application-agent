@@ -4,8 +4,9 @@ import { ask, pickFile } from './io.js';
 import { createResponse } from './muse.js';
 import { instructions } from './prompt.js';
 import { config } from './config.js';
-import { journal, readProfile, saveApplication, listApplications, loadApplication, paths } from './state.js';
+import { journal, readProfile, saveApplication, listApplications, loadApplication, paths, findCachedAnswer, rememberAnswer } from './state.js';
 import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 import { AnswerCurator } from './curator.js';
 
 const target = { type: 'object', properties: { index: { type: 'integer' }, css: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' }, label: { type: 'string' }, placeholder: { type: 'string' }, text: { type: 'string' } } };
@@ -289,8 +290,14 @@ async function prepareField(browser, curator, target, value, signal, pageText) {
   const field = await browser.describeTarget(target);
   if (field.type === 'password') throw new Error('Passwords and login fields belong to the user. Use handoff_to_user.');
   if (browser.record.dryRun) return { target, field, review: { decision: 'fast', text: value, note: 'Dry-run benchmark bypassed curator review.' } };
+  const question = field.label || field.question || field.name || '';
+  const highRisk = /\b(eligib|qualif|experience|employment|education|degree|revenue|funding|financial|traction|metric|impact|award|achieve|year|salary|compensation|citizenship|visa)\w*/i.test(question);
+  const profileHash = crypto.createHash('sha256').update(curator.profile || '').digest('hex');
+  const cached = await findCachedAnswer({ question, fieldType: field.type, maxLength: field.maxLength, profileHash, highRisk });
+  if (cached) return { target, field, review: { decision: 'cached', text: cached.answer, note: `Reused ${cached.matchedBy} verified answer memory.` }, cached: true };
   const context = value.trim().length >= 70 ? pageText ?? await browser.pageText() : '';
   const review = await curator.review({ draft: value, field, pageText: context, signal });
+  if (review.decision !== 'needs_fact' && review.text?.trim()) await rememberAnswer({ question, answer: review.text, fieldType: field.type, maxLength: field.maxLength, profileHash, highRisk });
   return { target, field, review };
 }
 

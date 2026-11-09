@@ -8,6 +8,7 @@ import { config } from './config.js';
 const applicationsDir = path.join(config.dataDir, 'applications');
 const profilePath = path.join(config.dataDir, 'profile.md');
 const homeChatPath = path.join(config.dataDir, 'home-chat.json');
+const answerCachePath = path.join(config.dataDir, 'answer-cache.json');
 const browserDir = path.join(config.dataDir, 'chrome-profile');
 const newDocumentsDir = path.join(os.homedir(), 'Documents', 'Rax');
 const oldDocumentsDir = path.join(os.homedir(), 'Documents', 'Kito');
@@ -23,8 +24,41 @@ export async function ensureState() {
   }
 }
 
-export function paths() { return { applicationsDir, profilePath, homeChatPath, browserDir, documentsDir }; }
+export function paths() { return { applicationsDir, profilePath, homeChatPath, answerCachePath, browserDir, documentsDir }; }
 export async function readProfile() { await ensureState(); return fs.readFile(profilePath, 'utf8'); }
+function normalizeQuestion(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function tokens(value) { return new Set(normalizeQuestion(value).split(' ').filter(token => token.length > 2)); }
+export async function findCachedAnswer({ question, fieldType = '', maxLength = null, profileHash = '', highRisk = false } = {}) {
+  await ensureState();
+  let entries = [];
+  try { entries = JSON.parse(await fs.readFile(answerCachePath, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (!Array.isArray(entries)) return null;
+  const query = normalizeQuestion(question);
+  const queryTokens = tokens(query);
+  const eligible = entries.filter(entry => entry?.answer && (!fieldType || !entry.fieldType || entry.fieldType === fieldType) && (!maxLength || entry.answer.length <= maxLength) && (!highRisk || entry.profileHash === profileHash));
+  const exact = eligible.find(entry => entry.questionKey === query);
+  if (exact) return { ...exact, matchedBy: 'exact' };
+  let best = null;
+  for (const entry of eligible) {
+    const candidate = tokens(entry.questionKey);
+    const overlap = [...queryTokens].filter(token => candidate.has(token)).length;
+    const score = overlap / Math.max(queryTokens.size, candidate.size, 1);
+    if (score >= 0.78 && (!best || score > best.score)) best = { ...entry, matchedBy: 'similar', score };
+  }
+  return best;
+}
+export async function rememberAnswer({ question, answer, fieldType = '', maxLength = null, profileHash = '', highRisk = false, source = 'curated' } = {}) {
+  await ensureState();
+  const questionKey = normalizeQuestion(question);
+  if (!questionKey || typeof answer !== 'string' || !answer.trim()) return null;
+  let entries = [];
+  try { entries = JSON.parse(await fs.readFile(answerCachePath, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (!Array.isArray(entries)) entries = [];
+  const entry = { questionKey, answer: answer.trim(), fieldType, maxLength, profileHash, highRisk, source, verifiedAt: new Date().toISOString() };
+  entries = [entry, ...entries.filter(item => item?.questionKey !== questionKey)].slice(0, 300);
+  await writeJsonAtomic(answerCachePath, entries);
+  return entry;
+}
 export async function readHomeChat() {
   await ensureState();
   try {
