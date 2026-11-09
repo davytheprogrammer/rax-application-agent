@@ -293,8 +293,12 @@ function showView(view) {
 function openStart() {
   if (state.activeId) { toast('Finish or stop the running application before starting another.'); return; }
   if (!state.configured) { showTab('settings'); toast('Set the Muse model and API key first.'); return; }
-  byId('start-overlay').hidden = false;
-  byId('start-url').focus();
+  byId('start-overlay').hidden = true;
+  showTab('applications');
+  showView('welcome');
+  byId('home-input').value = '';
+  byId('home-input').placeholder = 'Tell Rax what you want to apply for, or paste a direct link…';
+  byId('home-input').focus();
 }
 function renderHistory() {
   const container = byId('application-list');
