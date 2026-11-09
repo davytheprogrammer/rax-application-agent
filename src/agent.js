@@ -66,11 +66,11 @@ function defaultEmit(event) {
 }
 
 function recoveryInput(record, profile, userMessage) {
-  return { role: 'user', content: `Recover this interrupted application from local state. Do not assume a pending click or upload succeeded. Inspect the current page before repeating an action.\nGoal: ${record.goal}\nOriginal URL: ${record.url}\nLast URL: ${record.currentUrl}\nCurrent user request: ${userMessage}\nApplicant knowledge: ${profile.slice(0, 25000)}\nSelected files: ${JSON.stringify(record.sourceFiles || [])}\nChat answers: ${JSON.stringify((record.chat || []).slice(-30)).slice(0, 15000)}\nNotes: ${JSON.stringify((record.notes || []).slice(-30))}\nLast saved form draft: ${JSON.stringify(record.draftSnapshot || {}).slice(0, 30000)}\nRecent actions: ${JSON.stringify((record.events || []).slice(-40)).slice(0, 15000)}\nPrior confirmation: ${JSON.stringify(record.confirmation || null)}` };
+  return { role: 'user', content: `Recover this interrupted application from local state. Do not assume a pending click or upload succeeded. Inspect the current page before repeating an action.\nGoal: ${record.goal}\nOriginal URL: ${record.url}\nLast URL: ${record.currentUrl}\nProject key: ${record.projectKey || 'unknown'}\nCurrent user request: ${userMessage}\nApplicant knowledge: ${profile.slice(0, 9000)}\nSelected files: ${JSON.stringify(record.sourceFiles || [])}\nSaved answer plan: ${JSON.stringify((record.answerPlan || []).slice(-40))}\nCompleted fields: ${JSON.stringify((record.completedFields || []).slice(-40))}\nNotes: ${JSON.stringify((record.notes || []).slice(-10))}\nLast saved form draft: ${JSON.stringify(record.draftSnapshot || {}).slice(0, 12000)}\nCheckpoint: ${JSON.stringify(record.checkpoint || null)}\nRecent actions: ${JSON.stringify((record.events || []).slice(-10)).slice(0, 5000)}\nPrior confirmation: ${JSON.stringify(record.confirmation || null)}` };
 }
 
 export async function runAgent(record, userMessage, { emit = defaultEmit, signal, takeMessages = () => [], waitIfPaused = async () => false, keepBrowserOpen = true } = {}) {
-  const browser = new BrowserController(record, { onWait: text => emit({ type: 'status', text }) });
+  const browser = new BrowserController(record, { signal, onWait: text => emit({ type: 'status', text }) });
   let errorCaptured = false;
   const captureError = async () => {
     if (errorCaptured) return;
@@ -98,7 +98,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       emit({ type: 'status', text: 'Application received. Submission confirmed.' });
       return;
     }
-    if (initialInventory?.requiredRemaining === 0) {
+    if (initialInventory?.requiredRemaining === 0 && !record.dryRun) {
       const initialSnapshot = await browser.snapshot().catch(() => null);
       const submit = initialSnapshot?.controls?.find(control => /\b(submit application|submit|apply now|send application)\b/i.test(control.text || ''));
       if (submit) {
@@ -113,12 +113,12 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
     }
     const profile = await readProfile();
     const curator = new AnswerCurator(record, profile, emit);
-    const history = (await listApplications()).filter(item => item.id !== record.id).slice(0, 15).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url }));
+    const history = (await listApplications()).filter(item => item.id !== record.id && item.projectKey && item.projectKey === record.projectKey).slice(0, 5).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url }));
     const pendingCalls = record.pendingCalls || [];
     const savedOutputs = record.pendingOutputs || [];
     const initialInput = pendingCalls.length
       ? pendingCalls.map(call => savedOutputs.find(item => item.call_id === call.call_id) || { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify({ error: 'The previous run stopped during this tool call. Its side effect is unknown. Inspect the browser or file before deciding what to do; do not blindly repeat a submit or write.' }) })
-      : [{ role: 'user', content: `${record.dryRun ? 'DRY-RUN SPEED BENCHMARK: complete quickly, do not submit, do not upload, and stop before any submit control. Do not call application_history, read_application, find_files, search_file_contents, or curator tools unless a required verified fact is genuinely missing.\n' : ''}Application goal: ${record.goal}\nStarting URL: ${record.url}\nApplicant knowledge (user-maintained, may be incomplete):\n${profile.slice(0, 25000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-30)).slice(0, 15000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-30))}\nRecent application records (use application_history or read_application for detail):\n${JSON.stringify(history)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
+      : [{ role: 'user', content: `${record.dryRun ? 'DRY-RUN SPEED BENCHMARK: complete quickly, do not submit, do not upload, and stop before any submit control. Do not call application_history, read_application, find_files, search_file_contents, or curator tools unless a required verified fact is genuinely missing.\n' : ''}Application goal: ${record.goal}\nStarting URL: ${record.url}\nApplicant knowledge (user-maintained, may be incomplete):\n${profile.slice(0, 9000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-12)).slice(0, 6000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-10))}\nMatching application records only (same site/project):\n${JSON.stringify(history)}\nSaved answer plan: ${JSON.stringify((record.answerPlan || []).slice(-40))}\nCheckpoint: ${JSON.stringify(record.checkpoint || null)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
     let nextInput = [...initialInput, await pageMessage(browser, pendingCalls.length ? `Resumed run. Current user request: ${userMessage}` : 'Initial page observation')];
     let previousResponseId = record.responseId;
     for (let step = 0; step < config.maxSteps; step++) {
@@ -128,6 +128,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       for (const message of incoming) nextInput.push({ role: 'user', content: `User clarification for this application: ${message}` });
       emit({ type: 'status', text: `Thinking · step ${step + 1}` });
       let response;
+      const modelStarted = Date.now();
       try { response = await createResponse({ input: nextInput, previousResponseId, instructions, tools, signal, onWait: text => emit({ type: 'status', text }) }); }
       catch (error) {
         const lostContext = previousResponseId && [400, 404].includes(error.status) && /previous_response_id|response.*(not found|expired|unknown|invalid)/i.test(error.message);
@@ -142,6 +143,9 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
         nextInput = [recoveryInput(record, profile, userMessage), await pageMessage(browser, 'Recovery page observation')];
         response = await createResponse({ input: nextInput, instructions, tools, signal, onWait: text => emit({ type: 'status', text }) });
       }
+      const modelMs = Date.now() - modelStarted;
+      record.timings ||= []; record.timings.push({ phase: 'model', ms: modelMs, step: step + 1, at: new Date().toISOString() }); record.timings = record.timings.slice(-100);
+      emit({ type: 'timing', phase: 'model', ms: modelMs, step: step + 1 });
       previousResponseId = response.id;
       record.responseId = response.id;
       record.pendingOutputs = [];
@@ -183,6 +187,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
           break;
         }
         let result;
+        const toolStarted = Date.now();
         let beforeUrl = record.currentUrl;
         try { beforeUrl = browser.current().url(); } catch {}
         try {
@@ -191,7 +196,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
           result = await executeTool(call.name, args, browser, record, curator, signal);
           if (['browser_fill', 'browser_fill_fields', 'browser_select', 'browser_check'].includes(call.name)) {
             const inventory = await browser.formInventory().catch(() => null);
-            if (inventory?.requiredRemaining === 0) {
+            if (inventory?.requiredRemaining === 0 && !record.dryRun) {
               const snapshot = await browser.snapshot().catch(() => null);
               const submit = snapshot?.controls?.find(control => /\b(submit application|submit|apply now|send application)\b/i.test(control.text || ''));
               if (submit) {
@@ -214,6 +219,9 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
             journal(record, 'issue', { name: call.name, error: issue.slice(0, 2000) });
             emit({ type: 'issue', name: call.name, text: issue.slice(0, 2000) });
           }
+          const toolMs = Date.now() - toolStarted;
+          record.timings ||= []; record.timings.push({ phase: 'tool', name: call.name, ms: toolMs, at: new Date().toISOString() }); record.timings = record.timings.slice(-100);
+          emit({ type: 'timing', phase: 'tool', name: call.name, ms: toolMs });
         } catch (error) {
           if (signal?.aborted) throw error;
           result = { error: error.message || String(error) };
@@ -234,6 +242,8 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
         }
         emit({ type: 'url', url: record.currentUrl });
         record.pendingOutputs = [...nextInput];
+        record.pendingCalls = calls.slice(callIndex + 1).map(item => ({ name: item.name, call_id: item.call_id }));
+        record.checkpoint = { lastTool: call.name, callId: call.call_id, at: new Date().toISOString(), currentUrl: record.currentUrl, completedFields: (record.completedFields || []).slice(-100) };
         await saveApplication(record);
       }
       record.pendingOutputs = [...nextInput];
@@ -345,7 +355,16 @@ async function executeTool(name, args, browser, record, curator, signal) {
         const item = args.fields[index];
         try {
           if (prepared[index].error) throw prepared[index].error;
-          results.push({ index, target: item.target, ...await applyField(browser, prepared[index].value) });
+          const applied = await applyField(browser, prepared[index].value);
+          const result = { index, target: item.target, ...applied };
+          results.push(result);
+          record.answerPlan ||= [];
+          record.answerPlan = [...record.answerPlan.filter(entry => JSON.stringify(entry.target) !== JSON.stringify(item.target)), { target: item.target, value: applied.filled ? prepared[index].value.review.text : item.value, status: applied.filled ? 'filled' : 'pending', at: new Date().toISOString() }].slice(-200);
+          if (applied.filled) {
+            record.completedFields ||= [];
+            const key = JSON.stringify(item.target);
+            record.completedFields = [...record.completedFields.filter(entry => entry.key !== key), { key, target: item.target, at: new Date().toISOString() }].slice(-200);
+          }
         }
         catch (error) {
           if (signal?.aborted) throw error;

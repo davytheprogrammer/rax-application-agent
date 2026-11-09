@@ -39,7 +39,7 @@ async function connectToVisibleChrome(directory) {
 }
 
 export class BrowserController {
-  constructor(record, { onWait = () => {} } = {}) { this.record = record; this.browser = null; this.context = null; this.page = null; this.onWait = onWait; this.selectionLockUntil = 0; this.lastScroll = null; }
+  constructor(record, { onWait = () => {}, signal } = {}) { this.record = record; this.browser = null; this.context = null; this.page = null; this.onWait = onWait; this.signal = signal; this.selectionLockUntil = 0; this.lastScroll = null; }
   async open() {
     this.browser = await connectToVisibleChrome(paths().browserDir);
     this.context = this.browser.contexts()[0];
@@ -104,12 +104,15 @@ export class BrowserController {
     return this.snapshot();
   }
   async awaitPage(operation, label) {
+    if (this.signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
     let settled = false;
     const pending = operation().finally(() => { settled = true; });
     while (!settled) {
       let timer;
-      await Promise.race([pending.catch(() => {}), new Promise(resolve => { timer = setTimeout(resolve, 8000); })]);
-      clearTimeout(timer);
+      let abort;
+      const aborted = new Promise((_, reject) => { abort = () => reject(new DOMException('Stopped by user', 'AbortError')); this.signal?.addEventListener('abort', abort, { once: true }); });
+      try { await Promise.race([pending.catch(() => {}), aborted, new Promise(resolve => { timer = setTimeout(resolve, 8000); })]); }
+      finally { clearTimeout(timer); this.signal?.removeEventListener('abort', abort); }
       if (!settled) this.onWait(`${label} is still loading. I will check again in a few seconds.`);
     }
     return pending;
@@ -181,6 +184,15 @@ export class BrowserController {
       const incomplete = all.filter(field => field.required && !field.valid);
       const customErrors = [...document.querySelectorAll('.invalid-feedback.gc-error.d-block')]
         .map(el => el.innerText.trim()).filter(Boolean);
+      const requiredGroups = ['technologies', 'evidenceTypes', 'impactTypes', 'riskTypes', 'scaleRequirements', 'sustainabilityModels', 'supportTypes'];
+      for (const group of requiredGroups) {
+        const boxes = [...document.querySelectorAll(`input[type="checkbox"][data-group="${group}"]`)];
+        if (boxes.length && !boxes.some(box => box.checked)) customErrors.push(`Select at least one option for ${group}.`);
+      }
+      const stage = [...document.querySelectorAll('input[type="radio"][name="innovationStage"]')];
+      if (stage.length && !stage.some(item => item.checked)) customErrors.push('Select an innovation stage.');
+      const kpiRows = [...document.querySelectorAll('#kpiTable tbody tr')];
+      if (kpiRows.length && kpiRows.filter(row => [...row.querySelectorAll('input,select,textarea')].every(el => String(el.value || '').trim())).length < Math.min(2, kpiRows.length)) customErrors.push('Complete at least two KPI rows.');
       const bodyText = document.body?.innerText || '';
       return {
         fields: incomplete.slice(0, 80),
@@ -337,6 +349,7 @@ export class BrowserController {
       return { tag: control?.tagName?.toLowerCase(), type: control?.getAttribute('type'), text: (control?.innerText || control?.value || control?.getAttribute('aria-label') || '').trim().slice(0, 180), formSubmit: control?.tagName === 'BUTTON' && control.closest('form') && (!control.getAttribute('type') || control.getAttribute('type') === 'submit') };
     }, { x, y });
     if (button === 'left' && (['submit', 'image'].includes(hit.type) || hit.formSubmit || /\b(submit|send|complete|finalize|finish|confirm|apply|register)\b/i.test(hit.text))) {
+      if (this.record.dryRun) return { blocked: true, reason: 'Dry-run mode forbids submission', target: hit.text || hit.type };
       if (!await this.approveSubmission(hit.text || hit.type || 'button')) return { cancelled: true };
     }
     await this.moveCursor(x, y);
@@ -375,6 +388,7 @@ export class BrowserController {
     const page = this.current();
     const enter = /(^|\+)(?:Numpad)?Enter$/i.test(key);
     if (enter || /^(Space|Spacebar)$/i.test(key)) {
+      if (this.record.dryRun && enter) return { blocked: true, reason: 'Dry-run mode forbids submission-like keyboard actions' };
       const risky = enter || await page.evaluate(() => Boolean(document.activeElement?.closest('form') || document.activeElement?.matches('button,[role="button"]')));
       if (risky && !await this.approveSubmission(`press ${key}`)) return { cancelled: true };
     }

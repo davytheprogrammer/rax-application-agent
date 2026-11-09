@@ -28,6 +28,12 @@ export function paths() { return { applicationsDir, profilePath, homeChatPath, a
 export async function readProfile() { await ensureState(); return fs.readFile(profilePath, 'utf8'); }
 function normalizeQuestion(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
 function tokens(value) { return new Set(normalizeQuestion(value).split(' ').filter(token => token.length > 2)); }
+export function projectKey(url, goal = '') {
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+  const goalKey = normalizeQuestion(goal).split(' ').filter(token => token.length > 3).slice(0, 8).join('-');
+  return `${host || 'unknown'}:${goalKey}`;
+}
 export async function findCachedAnswer({ question, fieldType = '', maxLength = null, profileHash = '', highRisk = false } = {}) {
   await ensureState();
   let entries = [];
@@ -85,7 +91,7 @@ export async function writeJsonAtomic(file, value) {
 export async function createApplication(url, goal) {
   await ensureState();
   const now = new Date().toISOString();
-  const record = { id: `${now.slice(0, 10)}-${crypto.randomBytes(4).toString('hex')}`, revision: 0, url, currentUrl: url, goal, model: config.model, status: 'active', createdAt: now, updatedAt: now, responseId: null, pendingOutputs: [], sourceFiles: [], notes: [], events: [], summary: '', confirmation: null };
+  const record = { id: `${now.slice(0, 10)}-${crypto.randomBytes(4).toString('hex')}`, revision: 0, url, currentUrl: url, projectKey: projectKey(url, goal), goal, model: config.model, status: 'active', createdAt: now, updatedAt: now, responseId: null, pendingCalls: [], pendingOutputs: [], sourceFiles: [], notes: [], events: [], timings: [], answerPlan: [], completedFields: [], checkpoint: null, summary: '', confirmation: null };
   await saveApplication(record);
   return record;
 }
