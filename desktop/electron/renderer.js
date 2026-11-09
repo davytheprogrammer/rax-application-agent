@@ -409,7 +409,7 @@ function renderFiles(record) {
     const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); const use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', '#i-check'); check.appendChild(use); row.append(kind, copy, check); list.appendChild(row);
   }
 }
-function renderAgentVisualization(record) {
+function renderAgentVisualization(record, laneTarget = 'agent-lanes', statusTarget = 'agent-visual-status') {
   const lanes = [
     ['coordinator', 'Coordinator', 'Plans, sequences, and enforces safety', 'R'],
     ['memory', 'Memory retrieval', 'Finds verified facts and reusable answers', 'M'],
@@ -420,9 +420,9 @@ function renderAgentVisualization(record) {
   const recent = (record.events || []).slice(-12);
   const lastTool = [...recent].reverse().find(item => item.type === 'tool')?.detail?.name || '';
   const running = state.activeId === record.id;
-  const status = byId('agent-visual-status');
+  const status = byId(statusTarget);
   text(status, running ? 'Live' : record.status === 'submitted' ? 'Complete' : 'Standby');
-  const container = byId('agent-lanes'); clear(container);
+  const container = byId(laneTarget); if (!container) return; clear(container);
   for (const [key, title, detail, icon] of lanes) {
     let mode = running ? 'ready' : 'done';
     let stateText = running ? 'Ready' : record.status === 'submitted' ? 'Done' : 'Saved';
@@ -461,6 +461,7 @@ function renderApplication(record) {
   renderProgress(record);
   renderFiles(record);
   renderAgentVisualization(record);
+  renderAgentVisualization(record, 'visual-page-lanes', 'visual-page-status');
   renderChat(record.chat || []);
   renderConversation(record);
   renderControls();
@@ -513,8 +514,12 @@ async function refresh() {
 function showTab(tab) {
   for (const button of document.querySelectorAll('.nav-item')) button.classList.toggle('active', button.dataset.tab === tab);
   for (const section of document.querySelectorAll('.tab-content')) section.classList.toggle('active', section.id === `${tab}-tab`);
-  text(byId('page-title'), tab === 'profile' ? 'Knowledge' : tab === 'settings' ? 'Agent settings' : 'Applications');
-  text(byId('page-subtitle'), tab === 'profile' ? 'The verified context Rax can reuse in applications.' : tab === 'settings' ? 'Configure the local agent and its model.' : 'Your personal agent for every application, from first draft to final submission.');
+  text(byId('page-title'), tab === 'profile' ? 'Knowledge' : tab === 'visualization' ? 'Agent visualization' : tab === 'settings' ? 'Agent settings' : 'Applications');
+  text(byId('page-subtitle'), tab === 'profile' ? 'The verified context Rax can reuse in applications.' : tab === 'visualization' ? 'A live view of Rax\'s bounded coordination lanes.' : tab === 'settings' ? 'Configure the local agent and its model.' : 'Your personal agent for every application, from first draft to final submission.');
+  if (tab === 'visualization') {
+    const record = state.current || (state.selectedId && state.applications.find(item => item.id === state.selectedId));
+    if (record) renderAgentVisualization(record, 'visual-page-lanes', 'visual-page-status');
+  }
 }
 function showApproval(message) {
   state.pendingPrompt = message;
@@ -585,6 +590,7 @@ function onMessage(message) {
       state.current.events.push({ at: new Date().toISOString(), type: 'tool', detail: { name: message.name }, pending: true });
       renderTaskCard(state.current);
       renderAgentVisualization(state.current);
+      renderAgentVisualization(state.current, 'visual-page-lanes', 'visual-page-status');
     }
   }
   if (['tool_error', 'error', 'issue', 'backend_closed'].includes(message.type)) {
@@ -596,7 +602,7 @@ function onMessage(message) {
   if (message.type === 'curation') {
     appendActivity(`Curator · ${message.stage}: ${message.text || ''}`);
     if (message.stage === 'unavailable') { if (message.audible !== false) void playSound('error'); renderIssue({ id: message.id || state.activeId, type: 'curation', text: message.text || 'Answer review is unavailable.' }, true); }
-    if (state.current) renderAgentVisualization(state.current);
+    if (state.current) { renderAgentVisualization(state.current); renderAgentVisualization(state.current, 'visual-page-lanes', 'visual-page-status'); }
   }
   if (message.type === 'status') { state.runDetail = message.text; renderControls(); }
   if (message.type === 'complete') { if (message.audible !== false) void playSound(message.status === 'submitted' ? 'success' : 'attention'); appendActivity(`Run ended: ${message.status}`, 'message'); }
