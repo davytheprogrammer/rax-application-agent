@@ -1,5 +1,5 @@
 import { BrowserController } from './browser.js';
-import { listFiles, readFile, writeFile, searchFileContents } from './files.js';
+import { listFiles, readFile, writeFile, createPdf, searchFileContents } from './files.js';
 import { ask, pickFile } from './io.js';
 import { createResponse } from './muse.js';
 import { instructions } from './prompt.js';
@@ -32,6 +32,7 @@ const tools = [
   tool('attach_local_file', 'Attach a known relevant local file path to this application record before browser_upload.', { file: { type: 'string' } }, ['file']),
   tool('pick_file', 'Ask the user to choose a file in Rax when its path cannot be found or the choice is ambiguous.', { purpose: { type: 'string' } }, ['purpose']),
   tool('write_local_file', 'Create or overwrite an application-related local text file.', { file: { type: 'string' }, content: { type: 'string' } }, ['file', 'content']),
+  tool('create_pdf', 'Create a paginated PDF attachment from drafted cover-letter, essay, statement, or other application text.', { file: { type: 'string' }, title: { type: 'string' }, author: { type: 'string' }, content: { type: 'string' } }, ['file', 'content']),
   tool('application_history', 'List prior application IDs, goals, statuses, and confirmations.'),
   tool('read_application', 'Read one prior application record to reuse accurate answers.', { id: { type: 'string' } }, ['id']),
   tool('save_profile_note', 'Append one source-verified applicant fact to persistent knowledge.', { note: { type: 'string' } }, ['note']),
@@ -391,6 +392,13 @@ async function executeTool(name, args, browser, record, curator, signal) {
     }
     case 'curate_answer': return curator.review({ draft: args.draft, field: { label: args.question, question: args.question }, pageText: await browser.pageText(), signal });
     case 'write_local_file': return writeFile(args.file, args.content);
+    case 'create_pdf': {
+      const result = await createPdf(args.file, args.content, args.title, args.author);
+      record.sourceFiles ||= [];
+      if (!record.sourceFiles.includes(result.path)) record.sourceFiles.push(result.path);
+      await saveApplication(record);
+      return { ...result, attachedToApplication: true };
+    }
     case 'application_history': return (await listApplications()).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url, confirmation: item.confirmation }));
     case 'read_application': {
       const item = await loadApplication(args.id);

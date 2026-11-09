@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import mammoth from 'mammoth';
 import { paths } from './state.js';
@@ -79,6 +79,24 @@ export async function writeFile(file, content) {
   await fs.mkdir(path.dirname(full), { recursive: true });
   await fs.writeFile(full, content, { mode: 0o600 });
   return { written: full, characters: content.length };
+}
+
+export async function createPdf(file, content, title = 'Application Document', author = '') {
+  const full = absolute(file);
+  if (!full.toLowerCase().endsWith('.pdf')) throw new Error('PDF output path must end in .pdf');
+  if (typeof content !== 'string' || !content.trim() || content.length > 100000) throw new Error('PDF content must be non-empty text under 100,000 characters');
+  const script = path.resolve(process.cwd(), 'scripts/create_pdf.py');
+  const payload = JSON.stringify({ file: full, content, title, author });
+  const stdout = await new Promise((resolve, reject) => {
+    const child = spawn('python3', [script], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let out = '', err = '';
+    child.stdout.on('data', chunk => { out += chunk; });
+    child.stderr.on('data', chunk => { err += chunk; });
+    child.on('error', reject);
+    child.on('close', code => code === 0 ? resolve(out) : reject(new Error(err.trim() || `PDF generation failed with exit code ${code}`)));
+    child.stdin.end(payload);
+  });
+  return { ...JSON.parse(stdout.trim()), path: full };
 }
 
 export async function searchFileContents(directory, query) {
