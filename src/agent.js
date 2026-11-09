@@ -336,8 +336,18 @@ async function executeTool(name, args, browser, record, curator, signal) {
       if (field.maxLength && review.text.length > field.maxLength) return { typed: false, issue: `Curated answer exceeds ${field.maxLength} characters`, proposed: review.text };
       return browser.typeText(review.text);
     }
-    case 'find_files': return listFiles(args.directory, args.query);
-    case 'search_file_contents': return searchFileContents(args.directory, args.query);
+    case 'find_files': {
+      record.toolCounts ||= {};
+      record.toolCounts.findFiles = (record.toolCounts.findFiles || 0) + 1;
+      if (record.toolCounts.findFiles > 6) return { matches: [], issue: 'File search budget reached for this run; use the documents already read.' };
+      return listFiles(args.directory, args.query);
+    }
+    case 'search_file_contents': {
+      record.toolCounts ||= {};
+      record.toolCounts.searchContents = (record.toolCounts.searchContents || 0) + 1;
+      if (record.toolCounts.searchContents > 8) return { root: args.directory, query: args.query, matches: [], issue: 'Content search budget reached for this run; use the documents already read.' };
+      return searchFileContents(args.directory, args.query);
+    }
     case 'read_local_file': return readFile(args.file);
     case 'pick_file': {
       const chosen = await pickFile(args.purpose);
