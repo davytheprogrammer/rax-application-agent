@@ -154,6 +154,7 @@ export class BrowserController {
     const locator = await this.resolve(target);
     const details = await locator.evaluate(el => ({ text: (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().slice(0, 180), type: el.getAttribute('type'), tag: el.tagName.toLowerCase(), formSubmit: el.tagName === 'BUTTON' && el.closest('form') && (!el.getAttribute('type') || el.getAttribute('type') === 'submit') }));
     if (['submit', 'image'].includes(details.type) || details.formSubmit || /\b(submit|send|complete|finalize|finish|confirm|apply|register)\b/i.test(details.text)) {
+      if (this.record.dryRun) return { blocked: true, reason: 'Dry-run mode forbids submission', target: details.text || details.type };
       if (!await this.approveSubmission(details.text || details.type || 'button')) return { cancelled: true, reason: 'User declined submission' };
     }
     await this.awaitPage(() => locator.click({ timeout: 60000 }), 'Chrome control');
@@ -229,6 +230,7 @@ export class BrowserController {
     return { checked: Boolean(checked), changed: true };
   }
   async upload(target, file) {
+    if (this.record.dryRun) return { blocked: true, reason: 'Dry-run mode forbids external uploads' };
     const absolute = await fs.realpath(path.resolve(file));
     const allowed = await Promise.all((this.record.sourceFiles || []).map(item => fs.realpath(item).catch(() => null)));
     if (!allowed.includes(absolute)) throw new Error('File is not attached to this application. Use pick_file or Add source file first.');

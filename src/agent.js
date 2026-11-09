@@ -82,6 +82,8 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
   const onAbort = () => { void browser.detach().catch(() => {}); };
   signal?.addEventListener('abort', onAbort, { once: true });
   try {
+    record.dryRun = /dry[- ]run|benchmark|speed test|do not submit|without submitting/i.test(userMessage);
+    if (record.dryRun) record.summary = 'Dry-run benchmark: no submission or external upload permitted.';
     if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
     await browser.open();
     if (signal?.aborted) throw new DOMException('Stopped by user', 'AbortError');
@@ -115,7 +117,7 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
     const savedOutputs = record.pendingOutputs || [];
     const initialInput = pendingCalls.length
       ? pendingCalls.map(call => savedOutputs.find(item => item.call_id === call.call_id) || { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify({ error: 'The previous run stopped during this tool call. Its side effect is unknown. Inspect the browser or file before deciding what to do; do not blindly repeat a submit or write.' }) })
-      : [{ role: 'user', content: `Application goal: ${record.goal}\nStarting URL: ${record.url}\nApplicant knowledge (user-maintained, may be incomplete):\n${profile.slice(0, 25000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-30)).slice(0, 15000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-30))}\nRecent application records (use application_history or read_application for detail):\n${JSON.stringify(history)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
+      : [{ role: 'user', content: `${record.dryRun ? 'DRY-RUN SPEED BENCHMARK: complete quickly, do not submit, do not upload, and stop before any submit control. Do not call application_history, read_application, find_files, search_file_contents, or curator tools unless a required verified fact is genuinely missing.\n' : ''}Application goal: ${record.goal}\nStarting URL: ${record.url}\nApplicant knowledge (user-maintained, may be incomplete):\n${profile.slice(0, 25000)}\nSelected source files: ${JSON.stringify(record.sourceFiles || [])}\nSaved chat answers: ${JSON.stringify((record.chat || []).slice(-30)).slice(0, 15000)}\nSaved application notes: ${JSON.stringify((record.notes || []).slice(-30))}\nRecent application records (use application_history or read_application for detail):\n${JSON.stringify(history)}\nCurrent user request: ${userMessage}\nCurrent browser URL: ${browser.current().url()}` }];
     let nextInput = [...initialInput, await pageMessage(browser, pendingCalls.length ? `Resumed run. Current user request: ${userMessage}` : 'Initial page observation')];
     let previousResponseId = record.responseId;
     for (let step = 0; step < config.maxSteps; step++) {
@@ -286,6 +288,7 @@ async function prepareField(browser, curator, target, value, signal, pageText) {
   if (typeof value !== 'string') throw new Error('Field value must be text');
   const field = await browser.describeTarget(target);
   if (field.type === 'password') throw new Error('Passwords and login fields belong to the user. Use handoff_to_user.');
+  if (browser.record.dryRun) return { target, field, review: { decision: 'fast', text: value, note: 'Dry-run benchmark bypassed curator review.' } };
   const context = value.trim().length >= 70 ? pageText ?? await browser.pageText() : '';
   const review = await curator.review({ draft: value, field, pageText: context, signal });
   return { target, field, review };
