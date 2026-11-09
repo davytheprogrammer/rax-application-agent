@@ -55,8 +55,8 @@ function truncate(value) {
 }
 
 async function pageMessage(browser, note = 'Current Chrome page') {
-  const page = await browser.snapshot();
-  return { role: 'user', content: `${note}. Inspect this page text and visible controls before acting. ${JSON.stringify({ url: page.url, title: page.title, text: page.text.slice(0, 6000), controls: page.controls.slice(0, 120) })}` };
+  const [page, form] = await Promise.all([browser.snapshot(), browser.formInventory().catch(() => null)]);
+  return { role: 'user', content: `${note}. Inspect this page and act on incomplete required fields directly. ${JSON.stringify({ url: page.url, title: page.title, text: page.text.slice(0, 6000), controls: page.controls.slice(0, 120), form })}` };
 }
 
 function defaultEmit(event) {
