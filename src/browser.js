@@ -50,9 +50,23 @@ export class BrowserController {
     await this.context.route(/^https:\/\/docs\.google\.com\/offline\/extension\/report(?:[?#]|$)/i, route => route.abort('blockedbyclient'));
     const existingPages = this.context.pages().filter(page => !page.isClosed());
     const newApplication = (this.record.runCount || 1) === 1 && !this.record.responseId && !(this.record.events || []).length && !(this.record.pendingCalls || []).length;
-    this.page = newApplication && existingPages.some(page => page.url() !== 'about:blank')
-      ? await this.context.newPage()
-      : existingPages.at(-1) || await this.context.newPage();
+    if (newApplication && existingPages.some(page => page.url() !== 'about:blank')) {
+      this.page = await this.context.newPage();
+    } else if (existingPages.length) {
+      const scored = await Promise.all(existingPages.map(async page => {
+        try {
+          const score = await page.evaluate(() => ({
+            url: location.href,
+            filled: [...document.querySelectorAll('input,textarea,select')].filter(el => String(el.value || '').trim()).length,
+            focused: document.hasFocus() ? 1 : 0,
+          }));
+          return { page, score };
+        } catch { return { page, score: { url: page.url(), filled: -1, focused: 0 } }; }
+      }));
+      this.page = scored.sort((a, b) => b.score.filled - a.score.filled || b.score.focused - a.score.focused)[0]?.page || existingPages.at(-1);
+    } else {
+      this.page = await this.context.newPage();
+    }
     if (newApplication) { await this.page.bringToFront(); this.selectionLockUntil = Date.now() + 10000; }
     for (const page of this.context.pages()) this.trackPage(page, false);
     this.context.on('page', page => this.trackPage(page));
