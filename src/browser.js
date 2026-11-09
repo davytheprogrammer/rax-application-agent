@@ -149,9 +149,9 @@ export class BrowserController {
     // Form-only numbering would point at missing or unrelated controls.
     await this.snapshot();
     const page = this.current();
-    const fields = await page.evaluate(() => {
+    const inventory = await page.evaluate(() => {
       const visible = el => { const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'; };
-      return [...document.querySelectorAll('input,textarea,select,[contenteditable="true"]')].filter(visible).slice(0, 150).map(el => ({
+      const all = [...document.querySelectorAll('input,textarea,select,[contenteditable="true"]')].filter(visible).slice(0, 200).map(el => ({
         index: el.hasAttribute('data-rax-index') ? Number(el.getAttribute('data-rax-index')) : null,
         tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || el.tagName.toLowerCase(),
         label: (el.labels?.[0]?.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 180),
@@ -161,8 +161,10 @@ export class BrowserController {
         valid: el.validity?.valid ?? null, validationMessage: el.validationMessage?.slice(0, 150) || '',
         options: el.tagName === 'SELECT' ? [...el.options].slice(0, 40).map(option => ({ value: option.value, label: option.textContent.trim().slice(0, 100) })) : undefined,
       }));
+      const incomplete = all.filter(field => field.required && !field.valid || ['checkbox', 'radio'].includes(field.type) && field.value === 'false' || !field.value);
+      return { fields: incomplete.slice(0, 100), totalFields: all.length, requiredRemaining: all.filter(field => field.required && !field.valid).length };
     });
-    return { url: page.url(), fields, requiredRemaining: fields.filter(field => field.required && !field.valid).length };
+    return { url: page.url(), ...inventory };
   }
   async describeTarget(target) {
     return (await this.resolve(target)).evaluate(el => ({
