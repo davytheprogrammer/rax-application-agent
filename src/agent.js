@@ -136,10 +136,10 @@ export async function runAgent(record, userMessage, { emit = defaultEmit, signal
       const modelStarted = Date.now();
       try { response = await createResponse({ input: nextInput, previousResponseId, instructions, tools, signal, onWait: text => emit({ type: 'status', text }) }); }
       catch (error) {
-        const lostContext = previousResponseId && ([400, 404].includes(error.status) && /previous_response_id|response.*(not found|expired|unknown|invalid)/i.test(error.message) || /No tool output found for function call/i.test(error.message));
+        const lostContext = previousResponseId && ([400, 404].includes(error.status) && /previous_response_id|response.*(not found|expired|unknown|invalid)/i.test(error.message) || /No tool output found for function call|request contains invalid parameters/i.test(error.message));
         if (!lostContext) throw error;
-        emit({ type: 'status', text: 'Muse context expired; rebuilding from local application state.' });
-        journal(record, 'recovery', 'Muse server context unavailable; rebuilt from local state');
+        emit({ type: 'status', text: /request contains invalid parameters/i.test(error.message) ? 'Muse rejected the request shape; rebuilding from local application state.' : 'Muse context expired; rebuilding from local application state.' });
+        journal(record, 'recovery', { reason: error.message, requestId: error.requestId || null, details: error.details || null });
         previousResponseId = null;
         record.responseId = null;
         record.pendingCalls = [];

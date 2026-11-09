@@ -37,6 +37,8 @@ export async function createResponse({ input, previousResponseId, instructions, 
         const error = new Error(`Muse API: ${message}`);
         error.status = response.status;
         error.code = data.error?.code;
+        error.details = data.error || data;
+        error.requestId = response.headers.get('x-request-id') || response.headers.get('request-id') || null;
         throw error;
       }
       if (!data.id || !Array.isArray(data.output)) throw new Error('Muse response is missing id or output');
