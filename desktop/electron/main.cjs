@@ -146,7 +146,7 @@ function validSender(event) {
 }
 ipcMain.handle('rax:command', async (event, action, values) => {
   if (!validSender(event)) throw new Error('Unknown Rax window');
-  const allowed = new Set(['state', 'home_request', 'cancel_home_request', 'start', 'resume', 'stop', 'takeover', 'handback', 'answer', 'chat', 'save_profile', 'save_settings', 'list_local_files', 'attach_file', 'application']);
+  const allowed = new Set(['state', 'new_chat', 'home_request', 'cancel_home_request', 'start', 'resume', 'stop', 'takeover', 'handback', 'answer', 'chat', 'save_profile', 'save_settings', 'list_local_files', 'attach_file', 'application']);
   if (!allowed.has(action) || !values || typeof values !== 'object' || Array.isArray(values)) throw new Error('Invalid command');
   const result = await command(action, values);
   if (action === 'state') { documentsDir = result.documentsDir || documentsDir; dataDir = result.dataDir || dataDir; activeId = result.activeId || null; }
