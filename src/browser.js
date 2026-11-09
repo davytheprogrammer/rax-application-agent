@@ -101,6 +101,8 @@ export class BrowserController {
     return pending;
   }
   async goto(url) {
+    const destination = safeUrl(url);
+    if (this.current().url() === destination) return { unchanged: true, url: destination, note: 'This URL is already open; the current form was preserved.' };
     try { await this.awaitPage(() => this.current().goto(safeUrl(url), { waitUntil: 'commit', timeout: 120000 }), 'Chrome page'); }
     catch (error) {
       if (error.name !== 'TimeoutError' || this.current().url() === 'about:blank') throw error;
