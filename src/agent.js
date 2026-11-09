@@ -33,7 +33,6 @@ const tools = [
   tool('read_local_file', 'Read a local text or PDF file. Use only when relevant to the application.', { file: { type: 'string' } }, ['file']),
   tool('attach_local_file', 'Attach a known relevant local file path to this application record before browser_upload.', { file: { type: 'string' } }, ['file']),
   tool('pick_file', 'Ask the user to choose a file in Rax when its path cannot be found or the choice is ambiguous.', { purpose: { type: 'string' } }, ['purpose']),
-  tool('measure_answer', 'Count words and characters in a proposed answer and compare with optional limits.', { text: { type: 'string' }, maxWords: { type: 'integer' }, maxCharacters: { type: 'integer' } }, ['text']),
   tool('write_local_file', 'Create or overwrite an application-related local text file.', { file: { type: 'string' }, content: { type: 'string' } }, ['file', 'content']),
   tool('application_history', 'List prior application IDs, goals, statuses, and confirmations.'),
   tool('read_application', 'Read one prior application record to reuse accurate answers.', { id: { type: 'string' } }, ['id']),
@@ -343,12 +342,6 @@ async function executeTool(name, args, browser, record, curator, signal) {
       return { attached: file, size: stat.size };
     }
     case 'curate_answer': return curator.review({ draft: args.draft, field: { label: args.question, question: args.question }, pageText: await browser.pageText(), signal });
-    case 'measure_answer': {
-      const answer = String(args.text || '');
-      const words = answer.trim() ? answer.trim().split(/\s+/u).length : 0;
-      const characters = [...answer].length;
-      return { words, characters, withinWordLimit: args.maxWords == null ? null : words <= args.maxWords, withinCharacterLimit: args.maxCharacters == null ? null : characters <= args.maxCharacters };
-    }
     case 'write_local_file': return writeFile(args.file, args.content);
     case 'application_history': return (await listApplications()).map(item => ({ id: item.id, goal: item.goal, status: item.status, url: item.url, confirmation: item.confirmation }));
     case 'read_application': {
