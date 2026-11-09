@@ -26,7 +26,6 @@ const tools = [
   tool('browser_select', 'Select a native dropdown value or label.', { target, value: { type: 'string' } }, ['target', 'value']),
   tool('browser_check', 'Check or uncheck a checkbox.', { target, checked: { type: 'boolean' } }, ['target', 'checked']),
   tool('browser_upload', 'Upload one local file through a file input.', { target, file: { type: 'string' } }, ['target', 'file']),
-  tool('browser_scroll', 'Scroll the current page vertically, then inspect its updated text and controls.', { deltaY: { type: 'number' } }, ['deltaY']),
   tool('computer_wait', 'Wait for a page, animation, or upload to settle. Maximum 10 seconds.', { milliseconds: { type: 'number' } }, ['milliseconds']),
   tool('keyboard_press', 'Press a key or key combination, using Playwright names such as Tab, Enter, Control+A.', { key: { type: 'string' } }, ['key']),
   tool('keyboard_type', 'Type text into the currently focused control.', { text: { type: 'string' } }, ['text']),
@@ -46,7 +45,7 @@ const tools = [
   tool('handoff_to_user', 'Pause while the user handles login, CAPTCHA, passkey, payment, or an inaccessible browser control.', { message: { type: 'string' } }, ['message']),
   tool('record_confirmation', 'Record observed proof of submission. Only call after observing confirmation in Chrome.', { confirmation: { type: 'string' } }, ['confirmation']),
 ];
-const pageChangeTools = new Set(['browser_switch_tab', 'browser_goto', 'browser_history', 'browser_click', 'browser_hover', 'browser_download', 'browser_fill', 'browser_fill_fields', 'browser_select', 'browser_check', 'browser_upload', 'browser_scroll', 'computer_wait', 'keyboard_press', 'keyboard_type', 'handoff_to_user']);
+const pageChangeTools = new Set(['browser_switch_tab', 'browser_goto', 'browser_history', 'browser_click', 'browser_hover', 'browser_download', 'browser_fill', 'browser_fill_fields', 'browser_select', 'browser_check', 'browser_upload', 'computer_wait', 'keyboard_press', 'keyboard_type', 'handoff_to_user']);
 
 function outputText(response) {
   if (response.output_text) return response.output_text;
@@ -311,7 +310,6 @@ async function executeTool(name, args, browser, record, curator, signal) {
     case 'browser_select': return browser.select(args.target, args.value);
     case 'browser_check': return browser.check(args.target, args.checked);
     case 'browser_upload': return browser.upload(args.target, args.file);
-    case 'browser_scroll': return browser.scrollPage(args.deltaY);
     case 'computer_wait': return browser.wait(args.milliseconds);
     case 'keyboard_press': return browser.pressKey(args.key);
     case 'keyboard_type': {
