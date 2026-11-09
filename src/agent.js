@@ -56,7 +56,7 @@ function truncate(value) {
 
 async function pageMessage(browser, note = 'Current Chrome page') {
   const page = await browser.snapshot();
-  return { role: 'user', content: `${note}. Inspect this page text, scroll position, and visible controls before acting. ${JSON.stringify({ url: page.url, title: page.title, text: page.text.slice(0, 10000), scroll: page.scroll, controls: page.controls })}` };
+  return { role: 'user', content: `${note}. Inspect this page text and visible controls before acting. ${JSON.stringify({ url: page.url, title: page.title, text: page.text.slice(0, 6000), controls: page.controls.slice(0, 120) })}` };
 }
 
 function defaultEmit(event) {
