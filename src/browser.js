@@ -39,7 +39,7 @@ async function connectToVisibleChrome(directory) {
 }
 
 export class BrowserController {
-  constructor(record, { onWait = () => {} } = {}) { this.record = record; this.browser = null; this.context = null; this.page = null; this.onWait = onWait; this.selectionLockUntil = 0; }
+  constructor(record, { onWait = () => {} } = {}) { this.record = record; this.browser = null; this.context = null; this.page = null; this.onWait = onWait; this.selectionLockUntil = 0; this.lastScroll = null; }
   async open() {
     this.browser = await connectToVisibleChrome(paths().browserDir);
     this.context = this.browser.contexts()[0];
@@ -270,10 +270,15 @@ export class BrowserController {
     if (!Number.isFinite(deltaY)) throw new Error('Scroll amount must be a number');
     const requested = deltaY;
     deltaY = Math.max(-5000, Math.min(5000, deltaY));
+    const direction = Math.sign(deltaY);
+    if (this.lastScroll && direction && direction !== this.lastScroll.direction && Date.now() - this.lastScroll.at < 15000) {
+      return { requestedPixels: requested, appliedPixels: 0, ignored: true, reason: 'Ignored a rapid reverse scroll; inspect the current page before changing direction.', url: this.current().url() };
+    }
     const before = await this.current().evaluate(() => (document.scrollingElement || document.documentElement).scrollTop);
     await this.current().mouse.wheel(0, deltaY);
     await this.current().waitForTimeout(200);
     const after = await this.current().evaluate(() => { const root = document.scrollingElement || document.documentElement; return { top: root.scrollTop, height: root.scrollHeight, viewport: root.clientHeight }; });
+    this.lastScroll = { direction, at: Date.now() };
     return { requestedPixels: requested, appliedPixels: deltaY, before, after: after.top, atBottom: after.top + after.viewport >= after.height - 4, moved: after.top !== before, url: this.current().url() };
   }
   async moveCursor(x, y) {
